@@ -1,0 +1,18 @@
+﻿DESARROLLAMO BROWSER — CONDICIONES DE USO
+
+Versión de prueba.
+
+Al instalar DesarrollAMO Browser aceptás que este software se encuentra en desarrollo y puede cambiar entre versiones.
+
+Privacidad
+- El navegador no envía por defecto el historial, cookies ni contenido de navegación a DesarrollAMO.
+- Los sitios y servicios de IA que abras están sujetos a sus propias políticas y condiciones.
+- El panel “Conectar IA” abre servicios externos elegidos por el usuario; DesarrollAMO no recibe sus credenciales.
+- Los datos locales de WebView2 se guardan en el perfil de Windows del usuario.
+
+Seguridad
+- No desactives las protecciones del sistema operativo para ejecutar el navegador.
+- Las herramientas de desarrollador e inspección deben usarse sólo sobre contenido y sistemas que tengas autorización para revisar.
+
+Licencia
+© DesarrollAMO. Tecnología con alma.
