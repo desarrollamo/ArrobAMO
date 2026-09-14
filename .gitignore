@@ -2,3 +2,10 @@
 DesarrollAMOBrowser.App/
 dist/
 *.zip
+dist-v0.2/
+release/
+installer/payload/
+DesarrollAMOBrowser.exe
+Microsoft.Web.WebView2.Core.dll
+Microsoft.Web.WebView2.WinForms.dll
+WebView2Loader.dll
