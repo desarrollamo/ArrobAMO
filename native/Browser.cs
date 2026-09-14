@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -10,7 +11,7 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace DesarrollAMOBrowser
+namespace ArrobAMO
 {
     public sealed class PyramidMark : Control
     {
@@ -23,41 +24,41 @@ namespace DesarrollAMOBrowser
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var brush = new SolidBrush(ForeColor))
+            using (var b = new SolidBrush(ForeColor))
             {
-                float h = Height - 4;
-                float baseY = Height - 2;
-                float w = Math.Max(12, Width / 3f - 3);
-                PointF[] left = { new PointF(2, baseY), new PointF(2 + w / 2, baseY - h * 0.72f), new PointF(2 + w, baseY) };
-                PointF[] middle = { new PointF(Width / 2f - w / 2, baseY), new PointF(Width / 2f, 2), new PointF(Width / 2f + w / 2, baseY) };
-                PointF[] right = { new PointF(Width - w - 2, baseY), new PointF(Width - 2 - w / 2, baseY - h * 0.62f), new PointF(Width - 2, baseY) };
-                e.Graphics.FillPolygon(brush, left);
-                e.Graphics.FillPolygon(brush, middle);
-                e.Graphics.FillPolygon(brush, right);
+                float h = Height - 4, y = Height - 2, w = Math.Max(10, Width / 3f - 3);
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(2,y), new PointF(2+w/2,y-h*0.72f), new PointF(2+w,y) });
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width/2f-w/2,y), new PointF(Width/2f,2), new PointF(Width/2f+w/2,y) });
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width-w-2,y), new PointF(Width-2-w/2,y-h*0.62f), new PointF(Width-2,y) });
             }
         }
     }
-    public class BrowserForm : Form
+
+    public sealed class BrowserForm : Form
     {
-        readonly Color Ink = ColorTranslator.FromHtml("#111827");
-        readonly Color Pink = ColorTranslator.FromHtml("#FF5AA5");
-        readonly Color Sky = ColorTranslator.FromHtml("#7DD3FC");
-        readonly Color Coral = ColorTranslator.FromHtml("#FF9F6E");
-        readonly Color Mist = ColorTranslator.FromHtml("#E5E7EB");
+        readonly Color Ink = Color.FromArgb(18,18,20);
+        readonly Color Ink2 = Color.FromArgb(28,28,31);
+        readonly Color Ink3 = Color.FromArgb(38,38,42);
+        readonly Color Soft = Color.FromArgb(52,52,57);
+        readonly Color TextColor = Color.FromArgb(242,242,244);
+        readonly Color Muted = Color.FromArgb(166,166,172);
+        readonly Color Danger = Color.FromArgb(220,70,70);
 
         readonly Panel brand = new Panel();
         readonly Panel nav = new Panel();
-        readonly PyramidMark brandMark = new PyramidMark();
+        readonly Panel side = new Panel();
+        readonly Panel statusLine = new Panel();
         readonly Label logo = new Label();
         readonly Label cpuLabel = new Label();
         readonly Label ramLabel = new Label();
         readonly Label gpuLabel = new Label();
         readonly Button aiButton = new Button();
+        readonly Button plus = new Button();
         readonly Button back = new Button();
         readonly Button forward = new Button();
         readonly Button reload = new Button();
         readonly Button home = new Button();
-        readonly Button plus = new Button();
+        readonly Button historyButton = new Button();
         readonly TextBox address = new TextBox();
         readonly TabControl tabs = new TabControl();
         readonly SplitContainer workspace = new SplitContainer();
@@ -66,114 +67,204 @@ namespace DesarrollAMOBrowser
         readonly Button aiClose = new Button();
         readonly WebView2 aiWeb = new WebView2();
         readonly ContextMenuStrip aiMenu = new ContextMenuStrip();
+        readonly ContextMenuStrip historyMenu = new ContextMenuStrip();
         readonly Timer monitorTimer = new Timer();
         readonly PerformanceCounter cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-        bool aiReady = false;
+        readonly List<string> history = new List<string>();
+
+        bool aiReady;
+        bool closingTab;
+        string HistoryFile
+        {
+            get
+            {
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArrobAMO");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "history.txt");
+            }
+        }
 
         public BrowserForm()
         {
             Text = "ArrobAMO";
-            Width = 1360;
-            Height = 860;
-            MinimumSize = new Size(900, 580);
+            Width = 1380;
+            Height = 880;
+            MinimumSize = new Size(960, 620);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Ink;
+            ForeColor = TextColor;
             KeyPreview = true;
 
+            BuildBrand();
+            BuildNav();
+            BuildSidebar();
+            BuildWorkspace();
+            BuildAiMenu();
+            LoadHistory();
+
+            back.Click += delegate { var w = Active(); if (w != null && w.CanGoBack) w.GoBack(); };
+            forward.Click += delegate { var w = Active(); if (w != null && w.CanGoForward) w.GoForward(); };
+            reload.Click += delegate { var w = Active(); if (w != null) w.Reload(); };
+            home.Click += delegate { Navigate("https://desarrollamo.com.ar/"); };
+            plus.Click += async delegate { await AddTab("https://desarrollamo.com.ar/"); };
+            aiButton.Click += delegate { aiMenu.Show(aiButton, new Point(0, aiButton.Height)); };
+            historyButton.Click += delegate { ShowHistory(); };
+
+            Shown += async delegate
+            {
+                cpuCounter.NextValue();
+                await AddTab("https://desarrollamo.com.ar/");
+                monitorTimer.Start();
+            };
+
+            FormClosed += delegate
+            {
+                monitorTimer.Stop();
+                cpuCounter.Dispose();
+                SaveHistory();
+            };
+
+            KeyDown += BrowserForm_KeyDown;
+            monitorTimer.Interval = 2500;
+            monitorTimer.Tick += async delegate { await UpdateMetrics(); };
+        }
+
+        void BuildBrand()
+        {
             brand.Dock = DockStyle.Top;
             brand.Height = 38;
-            brand.BackColor = Color.FromArgb(248, 247, 243);
+            brand.BackColor = Ink;
             Controls.Add(brand);
 
-            brandMark.Left = 10;
-            brandMark.Top = 5;
-            brandMark.Width = 62;
-            brandMark.Height = 28;
-            brandMark.ForeColor = Color.Black;
-            brandMark.BackColor = brand.BackColor;
-            brand.Controls.Add(brandMark);
+            var mark = new PyramidMark
+            {
+                Left = 12, Top = 8, Width = 44, Height = 22,
+                ForeColor = Color.White, BackColor = Ink
+            };
+            brand.Controls.Add(mark);
 
             logo.Text = "ArrobAMO";
-            logo.Left = 78;
-            logo.Top = 8;
+            logo.Left = 64;
+            logo.Top = 9;
             logo.AutoSize = true;
             logo.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
-            logo.ForeColor = Ink;
+            logo.ForeColor = TextColor;
             brand.Controls.Add(logo);
 
             ConfigureMetric(cpuLabel, "CPU --", 210);
-            ConfigureMetric(ramLabel, "RAM --", 300);
-            ConfigureMetric(gpuLabel, "GPU --", 400);
+            ConfigureMetric(ramLabel, "RAM --", 295);
+            ConfigureMetric(gpuLabel, "GPU --", 382);
 
             aiButton.Text = "Conectar IA";
-            aiButton.Width = 128;
+            aiButton.Width = 118;
             aiButton.Height = 28;
             aiButton.Top = 5;
-            aiButton.Left = ClientSize.Width - 145;
+            aiButton.Left = ClientSize.Width - 134;
             aiButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             aiButton.FlatStyle = FlatStyle.Flat;
-            aiButton.FlatAppearance.BorderColor = Pink;
-            aiButton.ForeColor = Ink;
-            aiButton.BackColor = Color.White;
-            aiButton.Click += delegate { aiMenu.Show(aiButton, new Point(0, aiButton.Height)); };
+            aiButton.FlatAppearance.BorderColor = Soft;
+            aiButton.FlatAppearance.MouseOverBackColor = Ink3;
+            aiButton.ForeColor = TextColor;
+            aiButton.BackColor = Ink2;
             brand.Controls.Add(aiButton);
+        }
 
-            AddAIOption("ChatGPT", "https://chatgpt.com/");
-            AddAIOption("Gemini", "https://gemini.google.com/");
-            AddAIOption("Claude", "https://claude.ai/");
-            AddAIOption("Microsoft Copilot", "https://copilot.microsoft.com/");
-            AddAIOption("Perplexity", "https://www.perplexity.ai/");
-            aiMenu.Items.Add(new ToolStripSeparator());
-            var otherAI = new ToolStripMenuItem("Otra IA por URL...");
-            otherAI.Click += async delegate { string u = PromptAIUrl(); if (!String.IsNullOrWhiteSpace(u)) await ShowAI("Personalizada", Normalize(u)); };
-            aiMenu.Items.Add(otherAI);
-
+        void BuildNav()
+        {
             nav.Dock = DockStyle.Top;
-            nav.Height = 48;
-            nav.BackColor = Ink;
+            nav.Height = 50;
+            nav.BackColor = Ink2;
             Controls.Add(nav);
-            AddNavButton(back, ((char)0x2190).ToString(), 8);
-            AddNavButton(forward, ((char)0x2192).ToString(), 50);
-            AddNavButton(reload, ((char)0x21BB).ToString(), 92);
-            AddNavButton(home, ((char)0x2302).ToString(), 134);
 
-            address.Left = 180;
-            address.Top = 9;
-            address.Height = 29;
-            address.Width = ClientSize.Width - 238;
+            AddNavButton(back, ((char)0x2190).ToString(), 10);
+            AddNavButton(forward, ((char)0x2192).ToString(), 52);
+            AddNavButton(reload, ((char)0x21BB).ToString(), 94);
+            AddNavButton(home, ((char)0x2302).ToString(), 136);
+
+            address.Left = 184;
+            address.Top = 10;
+            address.Height = 30;
+            address.Width = ClientSize.Width - 282;
             address.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             address.Font = new Font("Segoe UI", 10f);
             address.BorderStyle = BorderStyle.FixedSingle;
+            address.BackColor = Ink3;
+            address.ForeColor = TextColor;
             address.KeyDown += Address_KeyDown;
             nav.Controls.Add(address);
 
-            AddNavButton(plus, "+", ClientSize.Width - 48);
+            plus.Text = "+";
+            plus.Left = ClientSize.Width - 88;
+            plus.Top = 9;
+            plus.Width = 38;
+            plus.Height = 32;
             plus.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            plus.FlatStyle = FlatStyle.Flat;
+            plus.FlatAppearance.BorderSize = 0;
+            plus.BackColor = Ink2;
+            plus.ForeColor = TextColor;
+            plus.Font = new Font("Segoe UI", 13f);
+            nav.Controls.Add(plus);
 
+            statusLine.Left = 184;
+            statusLine.Top = 47;
+            statusLine.Width = 0;
+            statusLine.Height = 2;
+            statusLine.BackColor = Color.White;
+            nav.Controls.Add(statusLine);
+        }
+
+        void BuildSidebar()
+        {
+            side.Dock = DockStyle.Left;
+            side.Width = 54;
+            side.BackColor = Ink;
+            Controls.Add(side);
+            side.BringToFront();
+
+            AddSideButton("Inicio", ((char)0x2302).ToString(), 8, delegate { Navigate("https://desarrollamo.com.ar/"); });
+            AddSideButton("Historial", ((char)0x25F4).ToString(), 52, delegate { ShowHistory(); }, historyButton);
+            AddSideButton("Scripts", ((char)0x25A3).ToString(), 96, delegate { MessageBox.Show("Scripts llega en la siguiente etapa de ArrobAMO.", "ArrobAMO"); });
+            AddSideButton("Automatizaciones", ((char)0x2699).ToString(), 140, delegate { MessageBox.Show("Activar Loop y automatizaciones se implementarán sobre una ejecución real y verificable.", "ArrobAMO"); });
+            AddSideButton("IA", ((char)0x2726).ToString(), 184, delegate { aiMenu.Show(side, new Point(side.Width, 184)); });
+        }
+
+        void BuildWorkspace()
+        {
             workspace.Dock = DockStyle.Fill;
+            workspace.BackColor = Ink;
             workspace.FixedPanel = FixedPanel.Panel2;
             workspace.Panel2MinSize = 0;
-            workspace.SplitterWidth = 5;
-            workspace.IsSplitterFixed = false;
+            workspace.SplitterWidth = 4;
             Controls.Add(workspace);
             workspace.BringToFront();
 
             tabs.Dock = DockStyle.Fill;
+            tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tabs.SizeMode = TabSizeMode.Fixed;
+            tabs.ItemSize = new Size(220, 34);
+            tabs.Padding = new Point(16, 5);
             tabs.Font = new Font("Segoe UI", 9f);
-            tabs.SelectedIndexChanged += delegate { SyncActive(); };
+            tabs.BackColor = Ink;
+            tabs.DrawItem += Tabs_DrawItem;
+            tabs.MouseDown += Tabs_MouseDown;
+            tabs.MouseUp += delegate { closingTab = false; };
+            tabs.SelectedIndexChanged += delegate { SyncActive(); tabs.Invalidate(); };
             workspace.Panel1.Controls.Add(tabs);
 
             aiHeader.Dock = DockStyle.Top;
             aiHeader.Height = 40;
-            aiHeader.BackColor = Ink;
+            aiHeader.BackColor = Ink2;
+
             aiTitle.Text = "IA";
-            aiTitle.ForeColor = Color.White;
+            aiTitle.ForeColor = TextColor;
             aiTitle.Left = 12;
             aiTitle.Top = 11;
             aiTitle.AutoSize = true;
             aiTitle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             aiHeader.Controls.Add(aiTitle);
-            aiClose.Text = "×";
+
+            aiClose.Text = ((char)0x00D7).ToString();
             aiClose.Width = 38;
             aiClose.Height = 30;
             aiClose.Top = 5;
@@ -181,45 +272,47 @@ namespace DesarrollAMOBrowser
             aiClose.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             aiClose.FlatStyle = FlatStyle.Flat;
             aiClose.FlatAppearance.BorderSize = 0;
-            aiClose.ForeColor = Color.White;
-            aiClose.BackColor = Ink;
+            aiClose.ForeColor = TextColor;
+            aiClose.BackColor = Ink2;
             aiClose.Font = new Font("Segoe UI", 13f);
             aiClose.Click += delegate { HideAI(); };
             aiHeader.Controls.Add(aiClose);
-            workspace.Panel2.Controls.Add(aiHeader);
 
+            workspace.Panel2.Controls.Add(aiHeader);
             aiWeb.Dock = DockStyle.Fill;
             workspace.Panel2.Controls.Add(aiWeb);
             aiWeb.BringToFront();
             aiHeader.BringToFront();
             HideAI();
+        }
 
-            back.Click += delegate { var w = Active(); if (w != null && w.CanGoBack) w.GoBack(); };
-            forward.Click += delegate { var w = Active(); if (w != null && w.CanGoForward) w.GoForward(); };
-            reload.Click += delegate { var w = Active(); if (w != null) w.Reload(); };
-            home.Click += delegate { Navigate("https://desarrollamo.com.ar/"); };
-            plus.Click += async delegate { await AddTab("https://desarrollamo.com.ar/"); };
-            Shown += async delegate
+        void BuildAiMenu()
+        {
+            aiMenu.BackColor = Ink2;
+            aiMenu.ForeColor = TextColor;
+            AddAIOption("ChatGPT", "https://chatgpt.com/");
+            AddAIOption("Gemini", "https://gemini.google.com/");
+            AddAIOption("Claude", "https://claude.ai/");
+            AddAIOption("Microsoft Copilot", "https://copilot.microsoft.com/");
+            AddAIOption("Perplexity", "https://www.perplexity.ai/");
+            aiMenu.Items.Add(new ToolStripSeparator());
+            var other = new ToolStripMenuItem("Otra IA por URL...");
+            other.Click += async delegate
             {
-                cpuCounter.NextValue();
-                await AddTab("https://desarrollamo.com.ar/");
-                monitorTimer.Start();
+                string u = PromptAIUrl();
+                if (!String.IsNullOrWhiteSpace(u)) await ShowAI("Personalizada", Normalize(u));
             };
-            FormClosed += delegate { monitorTimer.Stop(); cpuCounter.Dispose(); };
-            KeyDown += BrowserForm_KeyDown;
-
-            monitorTimer.Interval = 2500;
-            monitorTimer.Tick += async delegate { await UpdateMetrics(); };
+            aiMenu.Items.Add(other);
         }
 
         void ConfigureMetric(Label label, string text, int left)
         {
             label.Text = text;
             label.Left = left;
-            label.Top = 10;
-            label.Width = 95;
+            label.Top = 11;
+            label.Width = 78;
             label.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
-            label.ForeColor = Ink;
+            label.ForeColor = Muted;
             brand.Controls.Add(label);
         }
 
@@ -227,66 +320,43 @@ namespace DesarrollAMOBrowser
         {
             b.Text = text;
             b.Left = left;
-            b.Top = 7;
-            b.Width = 38;
+            b.Top = 8;
+            b.Width = 36;
             b.Height = 32;
             b.FlatStyle = FlatStyle.Flat;
-            b.FlatAppearance.BorderColor = Pink;
-            b.BackColor = Ink;
-            b.ForeColor = text == "+" ? Pink : Sky;
-            b.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Ink3;
+            b.BackColor = Ink2;
+            b.ForeColor = TextColor;
+            b.Font = new Font("Segoe UI Symbol", 11f, FontStyle.Regular);
             nav.Controls.Add(b);
         }
 
-        void AddAIOption(string name, string url)
+        void AddSideButton(string tooltip, string glyph, int top, EventHandler action, Button existing = null)
         {
-            var item = new ToolStripMenuItem(name);
-            item.Click += async delegate { await ShowAI(name, url); };
-            aiMenu.Items.Add(item);
-        }
-
-        string PromptAIUrl()
-        {
-            using (var f = new Form())
-            {
-                f.Text = "Conectar otra IA"; f.Width = 520; f.Height = 160; f.StartPosition = FormStartPosition.CenterParent; f.FormBorderStyle = FormBorderStyle.FixedDialog; f.MaximizeBox = false; f.MinimizeBox = false;
-                var label = new Label { Text = "URL del servicio de IA", Left = 16, Top = 16, Width = 460 };
-                var box = new TextBox { Left = 16, Top = 42, Width = 470, Text = "https://" };
-                var ok = new Button { Text = "Conectar", Left = 386, Top = 76, Width = 100, DialogResult = DialogResult.OK };
-                f.Controls.Add(label); f.Controls.Add(box); f.Controls.Add(ok); f.AcceptButton = ok;
-                return f.ShowDialog(this) == DialogResult.OK ? box.Text.Trim() : "";
-            }
-        }
-
-        async Task ShowAI(string name, string url)
-        {
-            workspace.Panel2Collapsed = false;
-            workspace.SplitterDistance = Math.Max(520, Width - 420);
-            aiTitle.Text = "IA · " + name;
-            if (!aiReady)
-            {
-                string data = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "DesarrollAMO", "Browser", "AI");
-                Directory.CreateDirectory(data);
-                var env = await CoreWebView2Environment.CreateAsync(null, data, null);
-                await aiWeb.EnsureCoreWebView2Async(env);
-                aiWeb.CoreWebView2.Settings.AreDevToolsEnabled = true;
-                aiWeb.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-                aiWeb.CoreWebView2.Settings.IsStatusBarEnabled = false;
-                aiReady = true;
-            }
-            aiWeb.Source = new Uri(url);
-        }
-
-        void HideAI()
-        {
-            workspace.Panel2Collapsed = true;
+            var b = existing ?? new Button();
+            b.Text = glyph;
+            b.Left = 7;
+            b.Top = top;
+            b.Width = 40;
+            b.Height = 38;
+            b.FlatStyle = FlatStyle.Flat;
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Ink3;
+            b.BackColor = Ink;
+            b.ForeColor = Muted;
+            b.Font = new Font("Segoe UI Symbol", 12f);
+            b.Click += action;
+            new ToolTip().SetToolTip(b, tooltip);
+            side.Controls.Add(b);
         }
 
         async Task AddTab(string url)
         {
             var page = new TabPage("Nueva pestaña");
+            page.BackColor = Ink;
+            page.ForeColor = TextColor;
+
             var web = new WebView2 { Dock = DockStyle.Fill };
             page.Controls.Add(web);
             tabs.TabPages.Add(page);
@@ -294,11 +364,12 @@ namespace DesarrollAMOBrowser
 
             string data = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "DesarrollAMO", "Browser", "WebView2");
+                "ArrobAMO", "WebView2");
             Directory.CreateDirectory(data);
 
             var env = await CoreWebView2Environment.CreateAsync(null, data, null);
             await web.EnsureCoreWebView2Async(env);
+
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             web.CoreWebView2.Settings.AreDevToolsEnabled = true;
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
@@ -308,34 +379,236 @@ namespace DesarrollAMOBrowser
             web.CoreWebView2.NavigationStarting += delegate(object s, CoreWebView2NavigationStartingEventArgs e)
             {
                 if (tabs.SelectedTab == page) address.Text = e.Uri;
+                SetLoading(true);
             };
+
             web.CoreWebView2.SourceChanged += delegate
             {
                 if (tabs.SelectedTab == page) address.Text = web.Source == null ? "" : web.Source.ToString();
             };
+
             web.CoreWebView2.DocumentTitleChanged += delegate
             {
                 string title = web.CoreWebView2.DocumentTitle;
                 page.Text = ShortTitle(title);
-                if (tabs.SelectedTab == page) Text = title + " — ArrobAMO";
+                if (tabs.SelectedTab == page) Text = title + " - ArrobAMO";
+                tabs.Invalidate();
             };
+
             web.CoreWebView2.NewWindowRequested += async delegate(object s, CoreWebView2NewWindowRequestedEventArgs e)
             {
                 e.Handled = true;
                 await AddTab(e.Uri);
             };
-            web.CoreWebView2.NavigationCompleted += delegate { if (tabs.SelectedTab == page) SyncActive(); };
+
+            web.CoreWebView2.NavigationCompleted += delegate
+            {
+                SetLoading(false);
+                if (tabs.SelectedTab == page) SyncActive();
+                AddHistory(web.Source == null ? "" : web.Source.ToString(), web.CoreWebView2.DocumentTitle);
+            };
+
             web.Source = new Uri(Normalize(url));
+        }
+
+        void Tabs_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= tabs.TabPages.Count) return;
+            var page = tabs.TabPages[e.Index];
+            var r = tabs.GetTabRect(e.Index);
+            bool selected = tabs.SelectedIndex == e.Index;
+
+            using (var bg = new SolidBrush(selected ? Ink3 : Ink2))
+                e.Graphics.FillRectangle(bg, r);
+
+            var textRect = new Rectangle(r.X + 12, r.Y + 7, r.Width - 42, r.Height - 12);
+            TextRenderer.DrawText(e.Graphics, page.Text, tabs.Font, textRect, selected ? TextColor : Muted,
+                TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+
+            var closeRect = CloseRect(r);
+            TextRenderer.DrawText(e.Graphics, ((char)0x00D7).ToString(), new Font("Segoe UI", 11f),
+                closeRect, selected ? TextColor : Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+            if (selected)
+            {
+                using (var p = new Pen(Color.White, 2))
+                    e.Graphics.DrawLine(p, r.Left + 8, r.Bottom - 2, r.Right - 8, r.Bottom - 2);
+            }
+        }
+
+        Rectangle CloseRect(Rectangle tabRect)
+        {
+            return new Rectangle(tabRect.Right - 28, tabRect.Top + 6, 22, 22);
+        }
+
+        void Tabs_MouseDown(object sender, MouseEventArgs e)
+        {
+            for (int i = 0; i < tabs.TabPages.Count; i++)
+            {
+                var r = tabs.GetTabRect(i);
+                if (!r.Contains(e.Location)) continue;
+
+                if (e.Button == MouseButtons.Middle || CloseRect(r).Contains(e.Location))
+                {
+                    closingTab = true;
+                    CloseTab(i);
+                    return;
+                }
+            }
+        }
+
+        void CloseTab(int index)
+        {
+            if (index < 0 || index >= tabs.TabPages.Count) return;
+            var page = tabs.TabPages[index];
+            var web = page.Controls.OfType<WebView2>().FirstOrDefault();
+            if (web != null) web.Dispose();
+            tabs.TabPages.Remove(page);
+            page.Dispose();
+
+            if (tabs.TabPages.Count == 0)
+                BeginInvoke(new Action(async delegate { await AddTab("https://desarrollamo.com.ar/"); }));
+            else
+                SyncActive();
+        }
+
+        void SetLoading(bool active)
+        {
+            statusLine.Width = active ? Math.Max(100, address.Width / 2) : 0;
         }
 
         void EnableInspectMenu(WebView2 web)
         {
             web.CoreWebView2.ContextMenuRequested += delegate(object sender, CoreWebView2ContextMenuRequestedEventArgs e)
             {
-                var inspect = web.CoreWebView2.Environment.CreateContextMenuItem("Inspeccionar", null, CoreWebView2ContextMenuItemKind.Command);
-                inspect.CustomItemSelected += delegate { BeginInvoke(new Action(delegate { web.CoreWebView2.OpenDevToolsWindow(); })); };
+                var inspect = web.CoreWebView2.Environment.CreateContextMenuItem(
+                    "Inspeccionar", null, CoreWebView2ContextMenuItemKind.Command);
+                inspect.CustomItemSelected += delegate
+                {
+                    BeginInvoke(new Action(delegate { web.CoreWebView2.OpenDevToolsWindow(); }));
+                };
                 e.MenuItems.Insert(0, inspect);
             };
+        }
+
+        void AddAIOption(string name, string url)
+        {
+            var item = new ToolStripMenuItem(name);
+            item.Click += async delegate { await ShowAI(name, url); };
+            aiMenu.Items.Add(item);
+        }
+
+        async Task ShowAI(string name, string url)
+        {
+            workspace.Panel2Collapsed = false;
+            workspace.SplitterDistance = Math.Max(560, Width - 420);
+            aiTitle.Text = "IA - " + name;
+
+            if (!aiReady)
+            {
+                string data = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ArrobAMO", "AI");
+                Directory.CreateDirectory(data);
+                var env = await CoreWebView2Environment.CreateAsync(null, data, null);
+                await aiWeb.EnsureCoreWebView2Async(env);
+                aiWeb.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                aiWeb.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+                aiWeb.CoreWebView2.Settings.IsStatusBarEnabled = false;
+                aiReady = true;
+            }
+
+            aiWeb.Source = new Uri(url);
+        }
+
+        void HideAI()
+        {
+            workspace.Panel2Collapsed = true;
+        }
+
+        string PromptAIUrl()
+        {
+            using (var f = new Form())
+            {
+                f.Text = "Conectar otra IA";
+                f.Width = 520;
+                f.Height = 160;
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.FormBorderStyle = FormBorderStyle.FixedDialog;
+                f.MaximizeBox = false;
+                f.MinimizeBox = false;
+                f.BackColor = Ink2;
+                f.ForeColor = TextColor;
+
+                var label = new Label { Text = "URL del servicio de IA", Left = 16, Top = 16, Width = 460, ForeColor = TextColor };
+                var box = new TextBox { Left = 16, Top = 42, Width = 470, Text = "https://" };
+                var ok = new Button { Text = "Conectar", Left = 386, Top = 76, Width = 100, DialogResult = DialogResult.OK };
+
+                f.Controls.Add(label);
+                f.Controls.Add(box);
+                f.Controls.Add(ok);
+                f.AcceptButton = ok;
+
+                return f.ShowDialog(this) == DialogResult.OK ? box.Text.Trim() : "";
+            }
+        }
+
+        void ShowHistory()
+        {
+            historyMenu.Items.Clear();
+            historyMenu.BackColor = Ink2;
+            historyMenu.ForeColor = TextColor;
+
+            if (history.Count == 0)
+            {
+                historyMenu.Items.Add(new ToolStripMenuItem("Sin historial") { Enabled = false });
+            }
+            else
+            {
+                foreach (var row in history.Take(15))
+                {
+                    var parts = row.Split(new[] { '|' }, 2);
+                    string title = parts.Length > 1 ? parts[0] : parts[0];
+                    string url = parts.Length > 1 ? parts[1] : parts[0];
+                    var item = new ToolStripMenuItem(ShortTitle(title));
+                    item.ToolTipText = url;
+                    item.Click += delegate { Navigate(url); };
+                    historyMenu.Items.Add(item);
+                }
+
+                historyMenu.Items.Add(new ToolStripSeparator());
+                var clear = new ToolStripMenuItem("Borrar historial");
+                clear.Click += delegate { history.Clear(); SaveHistory(); };
+                historyMenu.Items.Add(clear);
+            }
+
+            historyMenu.Show(side, new Point(side.Width, 52));
+        }
+
+        void AddHistory(string url, string title)
+        {
+            if (String.IsNullOrWhiteSpace(url) || (!url.StartsWith("http://") && !url.StartsWith("https://"))) return;
+            string safeTitle = String.IsNullOrWhiteSpace(title) ? url : title.Replace("|", " ");
+            string row = safeTitle + "|" + url;
+            history.RemoveAll(x => x.EndsWith("|" + url, StringComparison.OrdinalIgnoreCase));
+            history.Insert(0, row);
+            if (history.Count > 100) history.RemoveRange(100, history.Count - 100);
+            SaveHistory();
+        }
+
+        void LoadHistory()
+        {
+            try
+            {
+                if (File.Exists(HistoryFile))
+                    history.AddRange(File.ReadAllLines(HistoryFile).Where(x => !String.IsNullOrWhiteSpace(x)).Take(100));
+            }
+            catch { }
+        }
+
+        void SaveHistory()
+        {
+            try { File.WriteAllLines(HistoryFile, history.Take(100).ToArray()); } catch { }
         }
 
         void BrowserForm_KeyDown(object sender, KeyEventArgs e)
@@ -345,15 +618,23 @@ namespace DesarrollAMOBrowser
                 var w = Active();
                 if (w != null && w.CoreWebView2 != null) w.CoreWebView2.OpenDevToolsWindow();
             }
+
             if (e.Control && e.KeyCode == Keys.L)
             {
                 address.Focus();
                 address.SelectAll();
                 e.SuppressKeyPress = true;
             }
+
             if (e.Control && e.KeyCode == Keys.T)
             {
                 BeginInvoke(new Action(async delegate { await AddTab("https://desarrollamo.com.ar/"); }));
+                e.SuppressKeyPress = true;
+            }
+
+            if (e.Control && e.KeyCode == Keys.W)
+            {
+                if (tabs.SelectedIndex >= 0) CloseTab(tabs.SelectedIndex);
                 e.SuppressKeyPress = true;
             }
         }
@@ -376,12 +657,15 @@ namespace DesarrollAMOBrowser
         {
             input = (input ?? "").Trim();
             if (input.Length == 0) return "https://desarrollamo.com.ar/";
+
             Uri uri;
             if (Uri.TryCreate(input, UriKind.Absolute, out uri) &&
                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
                 return uri.ToString();
+
             if (input.Contains(".") && !input.Contains(" "))
                 return "https://" + input;
+
             return "https://www.google.com/search?q=" + Uri.EscapeDataString(input);
         }
 
@@ -393,18 +677,19 @@ namespace DesarrollAMOBrowser
 
         void SyncActive()
         {
+            if (closingTab) return;
             var w = Active();
             if (w == null || w.CoreWebView2 == null) return;
             address.Text = w.Source == null ? "" : w.Source.ToString();
             back.Enabled = w.CanGoBack;
             forward.Enabled = w.CanGoForward;
-            Text = w.CoreWebView2.DocumentTitle + " — ArrobAMO";
+            Text = w.CoreWebView2.DocumentTitle + " - ArrobAMO";
         }
 
         string ShortTitle(string s)
         {
             if (String.IsNullOrWhiteSpace(s)) return "Nueva pestaña";
-            return s.Length <= 24 ? s : s.Substring(0, 23) + "…";
+            return s.Length <= 28 ? s : s.Substring(0, 27) + "...";
         }
 
         async Task UpdateMetrics()
@@ -416,6 +701,7 @@ namespace DesarrollAMOBrowser
                 GlobalMemoryStatusEx(m);
                 double ram = m.ullTotalPhys == 0 ? 0 : (double)(m.ullTotalPhys - m.ullAvailPhys) / m.ullTotalPhys * 100.0;
                 double gpu = await Task.Run(() => ReadGpuUsage());
+
                 cpuLabel.Text = "CPU " + Math.Round(cpu) + "%";
                 ramLabel.Text = "RAM " + Math.Round(ram) + "%";
                 gpuLabel.Text = gpu < 0 ? "GPU --" : "GPU " + Math.Round(gpu) + "%";
@@ -476,10 +762,6 @@ namespace DesarrollAMOBrowser
         }
     }
 }
-
-
-
-
 
 
 

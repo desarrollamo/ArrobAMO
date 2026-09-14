@@ -29,7 +29,7 @@ ArrobAMO no busca ser sólo otro navegador. Su dirección es:
 - IA elegida por el usuario;
 - integración con el ecosistema DesarrollAMO.
 
-## Estado v0.3.0
+## Estado v0.3.1
 
 - Navegación web real.
 - Pestañas.
@@ -81,3 +81,4 @@ ArrobAMO debe convertirse en un navegador para **automatizar trabajo real**, no 
 La identidad definitiva se diseñará por separado. Hasta entonces se utiliza una marca temporal monocroma de tres pirámides.
 
 © DesarrollAMO. Tecnología con alma.
+

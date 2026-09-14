@@ -73,7 +73,7 @@ namespace ArrobAMOSetup
             header.Controls.Add(title);
 
             var subtitle = new Label {
-                Text = "Navegador · v0.3.0 · Tecnología con alma.",
+                Text = "Navegador · v0.3.1 · Tecnología con alma.",
                 ForeColor = Sky,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true, Left = 119, Top = 58
@@ -200,7 +200,7 @@ namespace ArrobAMOSetup
             AddWelcomeButton("Conectar IA", 354, 245, true, delegate { LaunchBrowser(); });
             AddWelcomeButton("Activar Loop · próximamente", 32, 305, false, delegate { });
             AddWelcomeButton("Abrir ArrobAMO", 354, 305, true, delegate { LaunchBrowser(); });
-            AddWelcomeButton("Ver tutorial rápido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/DesarrollAMOBrowser"); });
+            AddWelcomeButton("Ver tutorial rápido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/ArrobAMO"); });
 
             var note = new Label {
                 Text = "Importación de datos y Loop se habilitarán cuando su ejecución sea real y verificable.",
@@ -284,7 +284,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"))
             {
                 key.SetValue("DisplayName", "ArrobAMO");
-                key.SetValue("DisplayVersion", "0.3.0");
+                key.SetValue("DisplayVersion", "0.3.1");
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
                 key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));
@@ -304,6 +304,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
         }
     }
 }
+
 
 
 
