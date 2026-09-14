@@ -89,6 +89,10 @@ namespace DesarrollAMOBrowser
             AddAIOption("Claude", "https://claude.ai/");
             AddAIOption("Microsoft Copilot", "https://copilot.microsoft.com/");
             AddAIOption("Perplexity", "https://www.perplexity.ai/");
+            aiMenu.Items.Add(new ToolStripSeparator());
+            var otherAI = new ToolStripMenuItem("Otra IA por URL...");
+            otherAI.Click += async delegate { string u = PromptAIUrl(); if (!String.IsNullOrWhiteSpace(u)) await ShowAI("Personalizada", Normalize(u)); };
+            aiMenu.Items.Add(otherAI);
 
             nav.Dock = DockStyle.Top;
             nav.Height = 48;
@@ -206,6 +210,19 @@ namespace DesarrollAMOBrowser
             var item = new ToolStripMenuItem(name);
             item.Click += async delegate { await ShowAI(name, url); };
             aiMenu.Items.Add(item);
+        }
+
+        string PromptAIUrl()
+        {
+            using (var f = new Form())
+            {
+                f.Text = "Conectar otra IA"; f.Width = 520; f.Height = 160; f.StartPosition = FormStartPosition.CenterParent; f.FormBorderStyle = FormBorderStyle.FixedDialog; f.MaximizeBox = false; f.MinimizeBox = false;
+                var label = new Label { Text = "URL del servicio de IA", Left = 16, Top = 16, Width = 460 };
+                var box = new TextBox { Left = 16, Top = 42, Width = 470, Text = "https://" };
+                var ok = new Button { Text = "Conectar", Left = 386, Top = 76, Width = 100, DialogResult = DialogResult.OK };
+                f.Controls.Add(label); f.Controls.Add(box); f.Controls.Add(ok); f.AcceptButton = ok;
+                return f.ShowDialog(this) == DialogResult.OK ? box.Text.Trim() : "";
+            }
         }
 
         async Task ShowAI(string name, string url)
@@ -426,4 +443,5 @@ namespace DesarrollAMOBrowser
         }
     }
 }
+
 
