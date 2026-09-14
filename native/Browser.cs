@@ -253,6 +253,7 @@ namespace DesarrollAMOBrowser
             web.CoreWebView2.Settings.AreDevToolsEnabled = true;
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
+            EnableInspectMenu(web);
 
             web.CoreWebView2.NavigationStarting += delegate(object s, CoreWebView2NavigationStartingEventArgs e)
             {
@@ -275,6 +276,16 @@ namespace DesarrollAMOBrowser
             };
             web.CoreWebView2.NavigationCompleted += delegate { if (tabs.SelectedTab == page) SyncActive(); };
             web.Source = new Uri(Normalize(url));
+        }
+
+        void EnableInspectMenu(WebView2 web)
+        {
+            web.CoreWebView2.ContextMenuRequested += delegate(object sender, CoreWebView2ContextMenuRequestedEventArgs e)
+            {
+                var inspect = web.CoreWebView2.Environment.CreateContextMenuItem("Inspeccionar", null, CoreWebView2ContextMenuItemKind.Command);
+                inspect.CustomItemSelected += delegate { BeginInvoke(new Action(delegate { web.CoreWebView2.OpenDevToolsWindow(); })); };
+                e.MenuItems.Insert(0, inspect);
+            };
         }
 
         void BrowserForm_KeyDown(object sender, KeyEventArgs e)
@@ -415,3 +426,4 @@ namespace DesarrollAMOBrowser
         }
     }
 }
+
