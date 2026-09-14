@@ -1,0 +1,4 @@
+﻿# Build / temporales
+DesarrollAMOBrowser.App/
+dist/
+*.zip
