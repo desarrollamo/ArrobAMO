@@ -9,3 +9,7 @@ DesarrollAMOBrowser.exe
 Microsoft.Web.WebView2.Core.dll
 Microsoft.Web.WebView2.WinForms.dll
 WebView2Loader.dll
+
+dist-v0.3/
+release-v0.3/
+

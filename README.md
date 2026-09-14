@@ -1,68 +1,83 @@
-﻿# DesarrollAMOBrowser
+﻿# ArrobAMO
 
-Navegador de **DesarrollAMO** para Windows.
+**ArrobAMO** es el navegador del ecosistema DesarrollAMO.
 
-**Objetivo de salida estable:** `DesarrollAMOBrowser.exe`
+> Navegación + IA + automatización en un solo lugar.
 
-## Estado
+El repositorio conserva por ahora el nombre histórico `DesarrollAMOBrowser` para no romper enlaces y releases existentes. El producto, ejecutable e instalador se llaman **ArrobAMO**.
 
-Proyecto inicializado. La primera meta es una versión usable en Windows basada en un motor Chromium embebido, con interfaz y comportamiento propios de DesarrollAMO.
+## Identidad
 
-## v0.1 · Windows
+- Producto: **ArrobAMO**
+- Marca madre: **DesarrollAMO**
+- Ejecutable: `ArrobAMO.exe`
+- Windows: x64
+- Motor actual: WebView2 / Chromium
+- Branding base: `desarrollamo/branding` v1.3.0
+- Símbolo temporal: **tres pirámides monocromas**; el icono definitivo se diseñará aparte.
 
-- Ejecutable nativo: `DesarrollAMOBrowser.exe`
-- Navegación web real
-- Pestañas
-- Atrás / adelante / recargar
-- Barra de direcciones
-- Descargas
-- Favoritos básicos
-- Modo oscuro
-- Identidad visual oficial DesarrollAMO
-- Base preparada para telemetría local, perfiles e integración futura con IAMO
+El concepto visual futuro parte de un núcleo central y elementos orbitando alrededor: el navegador como centro y las webs, IAs, scripts y tareas como nodos/electrones/planetas.
 
-## Arquitectura objetivo
+## Dirección de producto
 
-```text
-DesarrollAMOBrowser.exe
-├─ UI DesarrollAMO
-├─ Core del navegador
-├─ motor Chromium embebido
-└─ Windows
-```
+ArrobAMO no busca ser sólo otro navegador. Su dirección es:
 
-La intención es evitar Electron como capa principal y mantener el Core reutilizable para una futura versión nativa de DesarrollAMO OS.
+- navegador;
+- automatización;
+- loops repetibles;
+- scripts;
+- IA elegida por el usuario;
+- integración con el ecosistema DesarrollAMO.
+
+## Estado v0.3.0
+
+- Navegación web real.
+- Pestañas.
+- Atrás / adelante / recargar / inicio.
+- CPU, RAM y GPU visibles.
+- `Conectar IA` con ChatGPT, Gemini, Claude, Copilot, Perplexity y URL personalizada.
+- Panel lateral de IA.
+- DevTools / Inspeccionar.
+- Instalador por usuario.
+- Pantalla final de bienvenida.
+- Identidad visible **ArrobAMO**.
+- Marca temporal de tres pirámides en blanco y negro.
+
+## Próximas funciones
+
+### Importar datos
+
+Objetivo inicial:
+- favoritos / marcadores;
+- historial;
+- contraseñas;
+- autocompletado;
+- pestañas recientes;
+- Chrome;
+- Edge;
+- Firefox;
+- Brave;
+- Opera.
+
+La migración de cookies y sesiones se considera una fase posterior por su impacto en seguridad y compatibilidad.
+
+### Automatización
+
+- Activar Loop.
+- Grabar y repetir acciones.
+- Redactar script.
+- Importar script.
+- Exportar script.
+- Mis scripts / automatizaciones.
+- Ejecutar tareas con ArrobAMO minimizado.
+- Integrar bots o IAs autorizadas para asistir en tareas repetitivas.
+
+## Principio
+
+ArrobAMO debe convertirse en un navegador para **automatizar trabajo real**, no solamente abrir páginas.
 
 ## Branding
 
-La identidad visual se toma de:
+La identidad definitiva se diseñará por separado. Hasta entonces se utiliza una marca temporal monocroma de tres pirámides.
 
-- `desarrollamo/branding`
-- versión fijada: `v1.3.0`
-- wordmark: **DesarrollAMO.**
-- claim: **Tecnología con alma.**
-
-No depender de `main` del repositorio de branding para builds estables.
-
-## Camino de evolución
-
-- **v0.1:** Browser propio + Chromium en Windows
-- **v0.2:** monitor por pestaña de CPU, RAM, GPU y red
-- **v0.3:** privacidad, cookies, permisos y aislamiento
-- **v0.4:** IAMO integrado y automatización autorizada
-- **v0.5:** UI, seguridad, perfiles y Core DesarrollAMO propios
-- **v1:** storage, permisos, telemetría y más red bajo DesarrollAMO Core
-- **v2:** motor experimental DesarrollAMO para HTML/CSS simple
-- **v3+:** reducción gradual de dependencias de Chromium
-
-## Criterio de versión estable
-
-Una versión sólo se considerará estable cuando:
-
-1. compile para Windows x64;
-2. genere `DesarrollAMOBrowser.exe`;
-3. abra sitios HTTPS reales;
-4. soporte navegación básica y múltiples pestañas;
-5. cierre sin dejar procesos huérfanos;
-6. pase una prueba básica de consumo de memoria y estabilidad;
-7. tenga artefacto de release reproducible.
+© DesarrollAMO. Tecnología con alma.

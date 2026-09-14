@@ -7,8 +7,27 @@ using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace DesarrollAMOBrowserSetup
+namespace ArrobAMOSetup
 {
+    public sealed class PyramidMark : Control
+    {
+        public PyramidMark()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var b = new SolidBrush(ForeColor))
+            {
+                float h = Height - 4, y = Height - 2, w = Math.Max(12, Width / 3f - 3);
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(2,y), new PointF(2+w/2,y-h*0.72f), new PointF(2+w,y) });
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width/2f-w/2,y), new PointF(Width/2f,2), new PointF(Width/2f+w/2,y) });
+                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width-w-2,y), new PointF(Width-2-w/2,y-h*0.62f), new PointF(Width-2,y) });
+            }
+        }
+    }
     public sealed class SetupForm : Form
     {
         readonly Color Ink = ColorTranslator.FromHtml("#111827");
@@ -25,12 +44,12 @@ namespace DesarrollAMOBrowserSetup
 
         string Destination
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "DesarrollAMOBrowser"); }
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "ArrobAMO"); }
         }
 
         public SetupForm()
         {
-            Text = "Instalar DesarrollAMO Browser";
+            Text = "Instalar ArrobAMO";
             Width = 720;
             Height = 620;
             StartPosition = FormStartPosition.CenterScreen;
@@ -42,19 +61,22 @@ namespace DesarrollAMOBrowserSetup
             var header = new Panel { Dock = DockStyle.Top, Height = 92, BackColor = Ink };
             Controls.Add(header);
 
+            var mark = new PyramidMark { Left = 24, Top = 20, Width = 76, Height = 46, ForeColor = Color.White, BackColor = Ink };
+            header.Controls.Add(mark);
+
             var title = new Label {
-                Text = "Desarroll  AMO .",
+                Text = "ArrobAMO",
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 20f, FontStyle.Bold),
-                AutoSize = true, Left = 24, Top = 18
+                AutoSize = true, Left = 116, Top = 18
             };
             header.Controls.Add(title);
 
             var subtitle = new Label {
-                Text = "Browser · v0.2.0 · Tecnología con alma.",
+                Text = "Navegador · v0.3.0 · Tecnología con alma.",
                 ForeColor = Sky,
                 Font = new Font("Segoe UI", 9.5f),
-                AutoSize = true, Left = 27, Top = 58
+                AutoSize = true, Left = 119, Top = 58
             };
             header.Controls.Add(subtitle);
 
@@ -84,9 +106,9 @@ namespace DesarrollAMOBrowserSetup
             accept.CheckedChanged += delegate { install.Enabled = accept.Checked; };
             Controls.Add(accept);
 
-            launch.Text = "Abrir DesarrollAMO Browser al terminar";
+            launch.Text = "Abrir ArrobAMO al terminar";
             launch.Left = 24; launch.Top = 466; launch.Width = 330; launch.Height = 24;
-            launch.Checked = true;
+            launch.Checked = false;
             Controls.Add(launch);
 
             progress.Left = 24; progress.Top = 500; progress.Width = 460; progress.Height = 22;
@@ -121,7 +143,7 @@ namespace DesarrollAMOBrowserSetup
                 install.Enabled = false; accept.Enabled = false;
                 Directory.CreateDirectory(Destination);
 
-                Extract("DesarrollAMOBrowser.exe"); progress.Value = 1;
+                Extract("ArrobAMO.exe"); progress.Value = 1;
                 Extract("Microsoft.Web.WebView2.Core.dll"); progress.Value = 2;
                 Extract("Microsoft.Web.WebView2.WinForms.dll"); progress.Value = 3;
                 Extract("WebView2Loader.dll"); progress.Value = 4;
@@ -138,9 +160,9 @@ namespace DesarrollAMOBrowserSetup
 
 
                 if (launch.Checked)
-                    Process.Start(Path.Combine(Destination, "DesarrollAMOBrowser.exe"));
+                    Process.Start(Path.Combine(Destination, "ArrobAMO.exe"));
 
-                MessageBox.Show("DesarrollAMO Browser se instaló correctamente.", "DesarrollAMO Browser", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowWelcome();
             }
             catch (Exception ex)
             {
@@ -151,6 +173,60 @@ namespace DesarrollAMOBrowserSetup
             }
         }
 
+        void ShowWelcome()
+        {
+            terms.Visible = false;
+            accept.Visible = false;
+            launch.Visible = false;
+            progress.Visible = false;
+            install.Visible = false;
+
+            status.Left = 32;
+            status.Top = 138;
+            status.Width = 620;
+            status.Height = 56;
+            status.Text = "Bienvenido a ArrobAMO";
+            status.Font = new Font("Segoe UI", 18f, FontStyle.Bold);
+            status.ForeColor = Ink;
+
+            var desc = new Label {
+                Text = "Tu navegador para navegar, automatizar y trabajar con IA.",
+                Left = 32, Top = 192, Width = 620, Height = 28,
+                Font = new Font("Segoe UI", 10f), ForeColor = Color.DimGray
+            };
+            Controls.Add(desc);
+
+            AddWelcomeButton("Importar datos · próximamente", 32, 245, false, delegate { });
+            AddWelcomeButton("Conectar IA", 354, 245, true, delegate { LaunchBrowser(); });
+            AddWelcomeButton("Activar Loop · próximamente", 32, 305, false, delegate { });
+            AddWelcomeButton("Abrir ArrobAMO", 354, 305, true, delegate { LaunchBrowser(); });
+            AddWelcomeButton("Ver tutorial rápido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/DesarrollAMOBrowser"); });
+
+            var note = new Label {
+                Text = "Importación de datos y Loop se habilitarán cuando su ejecución sea real y verificable.",
+                Left = 32, Top = 430, Width = 620, Height = 44,
+                Font = new Font("Segoe UI", 8.5f), ForeColor = Color.DimGray
+            };
+            Controls.Add(note);
+        }
+
+        void AddWelcomeButton(string text, int left, int top, bool enabled, EventHandler action)
+        {
+            var b = new Button { Text = text, Left = left, Top = top, Width = 290, Height = 44, Enabled = enabled };
+            b.FlatStyle = FlatStyle.Flat;
+            b.FlatAppearance.BorderColor = enabled ? Ink : Color.LightGray;
+            b.BackColor = enabled ? Color.White : Color.FromArgb(245,245,245);
+            b.ForeColor = enabled ? Ink : Color.Gray;
+            b.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+            b.Click += action;
+            Controls.Add(b);
+        }
+
+        void LaunchBrowser()
+        {
+            string exe = Path.Combine(Destination, "ArrobAMO.exe");
+            if (File.Exists(exe)) Process.Start(exe);
+        }
         void Extract(string name)
         {
             string output = Path.Combine(Destination, name);
@@ -175,26 +251,26 @@ namespace DesarrollAMOBrowserSetup
             string self = Path.Combine(Destination, "Desinstalar.cmd");
             string content =
 @"@echo off
-taskkill /IM DesarrollAMOBrowser.exe /F >nul 2>nul
+taskkill /IM ArrobAMO.exe /F >nul 2>nul
 timeout /t 1 /nobreak >nul
-reg delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\DesarrollAMOBrowser"" /f >nul 2>nul
-del ""%USERPROFILE%\Desktop\DesarrollAMO Browser.lnk"" >nul 2>nul
-del ""%APPDATA%\Microsoft\Windows\Start Menu\Programs\DesarrollAMO Browser.lnk"" >nul 2>nul
+reg delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"" /f >nul 2>nul
+del ""%USERPROFILE%\Desktop\ArrobAMO.lnk"" >nul 2>nul
+del ""%APPDATA%\Microsoft\Windows\Start Menu\Programs\ArrobAMO.lnk"" >nul 2>nul
 cd /d ""%TEMP%""
-rmdir /s /q ""%LOCALAPPDATA%\Programs\DesarrollAMOBrowser""
+rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
 ";
             File.WriteAllText(self, content, Encoding.ASCII);
         }
 
         void CreateShortcuts()
         {
-            string exe = Path.Combine(Destination, "DesarrollAMOBrowser.exe");
-            string desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "DesarrollAMO Browser.lnk");
-            string start = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "DesarrollAMO Browser.lnk");
+            string exe = Path.Combine(Destination, "ArrobAMO.exe");
+            string desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "ArrobAMO.lnk");
+            string start = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "ArrobAMO.lnk");
             string ps =
                 "$ws=New-Object -ComObject WScript.Shell;" +
                 "$targets=@('" + Esc(desktop) + "','" + Esc(start) + "');" +
-                "foreach($p in $targets){$s=$ws.CreateShortcut($p);$s.TargetPath='" + Esc(exe) + "';$s.WorkingDirectory='" + Esc(Destination) + "';$s.Description='DesarrollAMO Browser';$s.Save()}";
+                "foreach($p in $targets){$s=$ws.CreateShortcut($p);$s.TargetPath='" + Esc(exe) + "';$s.WorkingDirectory='" + Esc(Destination) + "';$s.Description='ArrobAMO';$s.Save()}";
             string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(ps));
             var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " + encoded);
             psi.CreateNoWindow = true; psi.UseShellExecute = false;
@@ -205,15 +281,15 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\DesarrollAMOBrowser""
 
         void RegisterUninstall()
         {
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\DesarrollAMOBrowser"))
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"))
             {
-                key.SetValue("DisplayName", "DesarrollAMO Browser");
-                key.SetValue("DisplayVersion", "0.2.0");
+                key.SetValue("DisplayName", "ArrobAMO");
+                key.SetValue("DisplayVersion", "0.3.0");
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
-                key.SetValue("DisplayIcon", Path.Combine(Destination, "DesarrollAMOBrowser.exe"));
+                key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));
                 key.SetValue("UninstallString", Path.Combine(Destination, "Desinstalar.cmd"));
-                key.SetValue("URLInfoAbout", "https://github.com/desarrollamo/DesarrollAMOBrowser");
+                key.SetValue("URLInfoAbout", "https://github.com/desarrollamo/ArrobAMO");
                 key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
             }
@@ -228,5 +304,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\DesarrollAMOBrowser""
         }
     }
 }
+
+
 
 

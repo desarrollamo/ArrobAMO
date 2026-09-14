@@ -12,6 +12,31 @@ using Microsoft.Web.WebView2.WinForms;
 
 namespace DesarrollAMOBrowser
 {
+    public sealed class PyramidMark : Control
+    {
+        public PyramidMark()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var brush = new SolidBrush(ForeColor))
+            {
+                float h = Height - 4;
+                float baseY = Height - 2;
+                float w = Math.Max(12, Width / 3f - 3);
+                PointF[] left = { new PointF(2, baseY), new PointF(2 + w / 2, baseY - h * 0.72f), new PointF(2 + w, baseY) };
+                PointF[] middle = { new PointF(Width / 2f - w / 2, baseY), new PointF(Width / 2f, 2), new PointF(Width / 2f + w / 2, baseY) };
+                PointF[] right = { new PointF(Width - w - 2, baseY), new PointF(Width - 2 - w / 2, baseY - h * 0.62f), new PointF(Width - 2, baseY) };
+                e.Graphics.FillPolygon(brush, left);
+                e.Graphics.FillPolygon(brush, middle);
+                e.Graphics.FillPolygon(brush, right);
+            }
+        }
+    }
     public class BrowserForm : Form
     {
         readonly Color Ink = ColorTranslator.FromHtml("#111827");
@@ -22,6 +47,7 @@ namespace DesarrollAMOBrowser
 
         readonly Panel brand = new Panel();
         readonly Panel nav = new Panel();
+        readonly PyramidMark brandMark = new PyramidMark();
         readonly Label logo = new Label();
         readonly Label cpuLabel = new Label();
         readonly Label ramLabel = new Label();
@@ -46,7 +72,7 @@ namespace DesarrollAMOBrowser
 
         public BrowserForm()
         {
-            Text = "DesarrollAMO Browser";
+            Text = "ArrobAMO";
             Width = 1360;
             Height = 860;
             MinimumSize = new Size(900, 580);
@@ -59,8 +85,16 @@ namespace DesarrollAMOBrowser
             brand.BackColor = Color.FromArgb(248, 247, 243);
             Controls.Add(brand);
 
-            logo.Text = "Desarroll  AMO .";
-            logo.Left = 14;
+            brandMark.Left = 10;
+            brandMark.Top = 5;
+            brandMark.Width = 62;
+            brandMark.Height = 28;
+            brandMark.ForeColor = Color.Black;
+            brandMark.BackColor = brand.BackColor;
+            brand.Controls.Add(brandMark);
+
+            logo.Text = "ArrobAMO";
+            logo.Left = 78;
             logo.Top = 8;
             logo.AutoSize = true;
             logo.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
@@ -71,7 +105,7 @@ namespace DesarrollAMOBrowser
             ConfigureMetric(ramLabel, "RAM --", 300);
             ConfigureMetric(gpuLabel, "GPU --", 400);
 
-            aiButton.Text = "Conectar IA ▾";
+            aiButton.Text = "Conectar IA";
             aiButton.Width = 128;
             aiButton.Height = 28;
             aiButton.Top = 5;
@@ -98,11 +132,10 @@ namespace DesarrollAMOBrowser
             nav.Height = 48;
             nav.BackColor = Ink;
             Controls.Add(nav);
-
-            AddNavButton(back, "←", 8);
-            AddNavButton(forward, "→", 50);
-            AddNavButton(reload, "↻", 92);
-            AddNavButton(home, "⌂", 134);
+            AddNavButton(back, ((char)0x2190).ToString(), 8);
+            AddNavButton(forward, ((char)0x2192).ToString(), 50);
+            AddNavButton(reload, ((char)0x21BB).ToString(), 92);
+            AddNavButton(home, ((char)0x2302).ToString(), 134);
 
             address.Left = 180;
             address.Top = 9;
@@ -284,7 +317,7 @@ namespace DesarrollAMOBrowser
             {
                 string title = web.CoreWebView2.DocumentTitle;
                 page.Text = ShortTitle(title);
-                if (tabs.SelectedTab == page) Text = title + " — DesarrollAMO Browser";
+                if (tabs.SelectedTab == page) Text = title + " — ArrobAMO";
             };
             web.CoreWebView2.NewWindowRequested += async delegate(object s, CoreWebView2NewWindowRequestedEventArgs e)
             {
@@ -365,7 +398,7 @@ namespace DesarrollAMOBrowser
             address.Text = w.Source == null ? "" : w.Source.ToString();
             back.Enabled = w.CanGoBack;
             forward.Enabled = w.CanGoForward;
-            Text = w.CoreWebView2.DocumentTitle + " — DesarrollAMO Browser";
+            Text = w.CoreWebView2.DocumentTitle + " — ArrobAMO";
         }
 
         string ShortTitle(string s)
@@ -443,5 +476,10 @@ namespace DesarrollAMOBrowser
         }
     }
 }
+
+
+
+
+
 
 
