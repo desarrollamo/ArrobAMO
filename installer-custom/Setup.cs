@@ -73,7 +73,7 @@ namespace ArrobAMOSetup
             header.Controls.Add(title);
 
             var subtitle = new Label {
-                Text = "Navegador · v0.3.1 · Tecnología con alma.",
+                Text = "Navegador · v0.3.2 · Tecnología con alma.",
                 ForeColor = Sky,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true, Left = 119, Top = 58
@@ -185,7 +185,7 @@ namespace ArrobAMOSetup
             status.Top = 138;
             status.Width = 620;
             status.Height = 56;
-            status.Text = "Bienvenido a ArrobAMO";
+            status.Text = "ArrobAMO est\u00E1 listo";
             status.Font = new Font("Segoe UI", 18f, FontStyle.Bold);
             status.ForeColor = Ink;
 
@@ -196,14 +196,14 @@ namespace ArrobAMOSetup
             };
             Controls.Add(desc);
 
-            AddWelcomeButton("Importar datos · próximamente", 32, 245, false, delegate { });
+            AddWelcomeButton("Importar datos \u00B7 pr\u00F3ximamente", 32, 245, false, delegate { });
             AddWelcomeButton("Conectar IA", 354, 245, true, delegate { LaunchBrowser(); });
-            AddWelcomeButton("Activar Loop · próximamente", 32, 305, false, delegate { });
+            AddWelcomeButton("Activar Loop", 32, 305, true, delegate { LaunchLoop(); });
             AddWelcomeButton("Abrir ArrobAMO", 354, 305, true, delegate { LaunchBrowser(); });
-            AddWelcomeButton("Ver tutorial rápido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/ArrobAMO"); });
+            AddWelcomeButton("Ver tutorial r\u00E1pido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/ArrobAMO"); });
 
             var note = new Label {
-                Text = "Importación de datos y Loop se habilitarán cuando su ejecución sea real y verificable.",
+                Text = "Importación de datos se habilitará cuando su migración sea real y verificable. Loop ya está disponible.",
                 Left = 32, Top = 430, Width = 620, Height = 44,
                 Font = new Font("Segoe UI", 8.5f), ForeColor = Color.DimGray
             };
@@ -226,6 +226,11 @@ namespace ArrobAMOSetup
         {
             string exe = Path.Combine(Destination, "ArrobAMO.exe");
             if (File.Exists(exe)) Process.Start(exe);
+        }
+        void LaunchLoop()
+        {
+            string exe = Path.Combine(Destination, "ArrobAMO.exe");
+            if (File.Exists(exe)) Process.Start(exe, "--record");
         }
         void Extract(string name)
         {
@@ -284,7 +289,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"))
             {
                 key.SetValue("DisplayName", "ArrobAMO");
-                key.SetValue("DisplayVersion", "0.3.1");
+                key.SetValue("DisplayVersion", "0.3.2");
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
                 key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));
@@ -304,6 +309,8 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
         }
     }
 }
+
+
 
 
 

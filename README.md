@@ -1,84 +1,137 @@
 ﻿# ArrobAMO
 
-**ArrobAMO** es el navegador del ecosistema DesarrollAMO.
+ArrobAMO es el navegador del ecosistema DesarrollAMO.
 
 > Navegación + IA + automatización en un solo lugar.
 
-El repositorio conserva por ahora el nombre histórico `DesarrollAMOBrowser` para no romper enlaces y releases existentes. El producto, ejecutable e instalador se llaman **ArrobAMO**.
+Repositorio oficial: desarrollamo/ArrobAMO.
+
+## Estado · v0.3.2
+
+### Navegación
+
+- WebView2 / Chromium.
+- Pestañas con cierre por X, botón central y Ctrl+W.
+- Nueva pestaña con Ctrl+T.
+- Atrás, adelante, recargar y detener carga.
+- Barra de direcciones y búsqueda.
+- Indicador HTTPS / HTTP informativo.
+- Historial local persistente.
+- Marcadores locales persistentes.
+- Menú principal.
+- Inspeccionar / DevTools.
+- URL inicial por línea de comandos.
+
+### Popups y autenticación
+
+Los window.open() ya no se convierten en navegaciones independientes. ArrobAMO crea un WebView hijo real dentro de una pestaña mediante NewWindowRequested.NewWindow y comparte el mismo perfil WebView2.
+
+Prueba verificada: POPUP_OPENER_OK - ArrobAMO.
+
+### IA
+
+Conectar IA ofrece ChatGPT, Gemini, Claude, Microsoft Copilot, Perplexity y URL personalizada. Navegación normal y panel IA usan el mismo perfil local WebView2 para compartir cookies y sesiones.
+
+ChatGPT fue verificado cargando dentro de ArrobAMO.
+
+### Loop y Scripts
+
+Loop:
+- Activar / grabar.
+- Detener y guardar.
+- Ejecutar último Loop.
+- Ejecutar minimizado.
+- Repetir último Loop.
+- Detener ejecución.
+
+Scripts:
+- Redactar.
+- Importar.
+- Exportar.
+- Mis scripts.
+
+Formato: *.arrobamo
+
+Sintaxis manual:
+
+    NAV https://ejemplo.com
+    INPUT input[name=email] => texto
+    CLICK button#enviar
+    WAIT 1000
+
+La grabación no guarda el valor de campos password.
+
+Ejecución por línea de comandos:
+
+    ArrobAMO.exe https://ejemplo.com --script=C:\ruta\tarea.arrobamo
+    ArrobAMO.exe --record
+    ArrobAMO.exe https://ejemplo.com --script=C:\ruta\tarea.arrobamo --minimized
+
+### Sistema visual
+
+La base visual está centralizada en native/AmoUI.cs:
+- tokens de color;
+- tipografía;
+- bordes/radios;
+- variantes de botón;
+- badges;
+- spinner orbital;
+- barra de progreso;
+- toasts;
+- menús;
+- UI Kit interna;
+- sidebar colapsada / expandida;
+- responsive básico del chrome.
+
+Paleta principal: blanco, negro y grises. Verde, rojo, ámbar y azul se reservan para estados funcionales.
+
+### Diagnóstico
+
+CPU, RAM y GPU siguen visibles cuando hay espacio suficiente.
+
+Las excepciones de UI se registran en %LOCALAPPDATA%\ArrobAMO\errores.log. En vez del cuadro JIT crudo de .NET, ArrobAMO muestra un mensaje breve en español.
+
+## Instalador
+
+ArrobAMO-Setup-v0.3.2-win-x64.exe
+
+Pantalla final:
+- Importar datos · próximamente
+- Conectar IA
+- Activar Loop
+- Abrir ArrobAMO
+- Ver tutorial rápido
+
+Importar datos permanece deshabilitado hasta que la migración sea real y segura.
+
+## Lo que todavía no forma parte de v0.3.2
+
+- importación real de Chrome / Edge / Firefox / Brave / Opera;
+- gestor visual completo de descargas;
+- extensiones;
+- perfil de usuario;
+- configuración completa;
+- skeletons en todas las vistas;
+- sistema modal generalizado;
+- terminal integrada;
+- splash final con el logo definitivo;
+- iconografía definitiva;
+- motor propio fuera de Chromium.
+
+No se presentan estas funciones como terminadas.
+
+## Verificación v0.3.2
+
+- POPUP_OPENER_OK - ArrobAMO
+- ChatGPT: Chat, Work, Create & Code with AI - ArrobAMO
+- SCRIPT_OK_AMO - ArrobAMO
+- menú de Loop abierto sin reproducir ArgumentOutOfRangeException.
 
 ## Identidad
 
-- Producto: **ArrobAMO**
-- Marca madre: **DesarrollAMO**
-- Ejecutable: `ArrobAMO.exe`
-- Windows: x64
-- Motor actual: WebView2 / Chromium
-- Branding base: `desarrollamo/branding` v1.3.0
-- Símbolo temporal: **tres pirámides monocromas**; el icono definitivo se diseñará aparte.
+Producto: ArrobAMO
+Marca madre: DesarrollAMO
 
-El concepto visual futuro parte de un núcleo central y elementos orbitando alrededor: el navegador como centro y las webs, IAs, scripts y tareas como nodos/electrones/planetas.
-
-## Dirección de producto
-
-ArrobAMO no busca ser sólo otro navegador. Su dirección es:
-
-- navegador;
-- automatización;
-- loops repetibles;
-- scripts;
-- IA elegida por el usuario;
-- integración con el ecosistema DesarrollAMO.
-
-## Estado v0.3.1
-
-- Navegación web real.
-- Pestañas.
-- Atrás / adelante / recargar / inicio.
-- CPU, RAM y GPU visibles.
-- `Conectar IA` con ChatGPT, Gemini, Claude, Copilot, Perplexity y URL personalizada.
-- Panel lateral de IA.
-- DevTools / Inspeccionar.
-- Instalador por usuario.
-- Pantalla final de bienvenida.
-- Identidad visible **ArrobAMO**.
-- Marca temporal de tres pirámides en blanco y negro.
-
-## Próximas funciones
-
-### Importar datos
-
-Objetivo inicial:
-- favoritos / marcadores;
-- historial;
-- contraseñas;
-- autocompletado;
-- pestañas recientes;
-- Chrome;
-- Edge;
-- Firefox;
-- Brave;
-- Opera.
-
-La migración de cookies y sesiones se considera una fase posterior por su impacto en seguridad y compatibilidad.
-
-### Automatización
-
-- Activar Loop.
-- Grabar y repetir acciones.
-- Redactar script.
-- Importar script.
-- Exportar script.
-- Mis scripts / automatizaciones.
-- Ejecutar tareas con ArrobAMO minimizado.
-- Integrar bots o IAs autorizadas para asistir en tareas repetitivas.
-
-## Principio
-
-ArrobAMO debe convertirse en un navegador para **automatizar trabajo real**, no solamente abrir páginas.
-
-## Branding
-
-La identidad definitiva se diseñará por separado. Hasta entonces se utiliza una marca temporal monocroma de tres pirámides.
+Concepto: el navegador como núcleo operativo alrededor del cual orbitan sitios, herramientas, scripts, automatizaciones e inteligencias artificiales.
 
 © DesarrollAMO. Tecnología con alma.
-
