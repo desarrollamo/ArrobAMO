@@ -72,13 +72,15 @@ namespace ArrobAMO
                 HomeUrl = current.HomeUrl,
                 ShowMetrics = current.ShowMetrics,
                 ExpandSidebarAtStart = current.ExpandSidebarAtStart,
-                RestoreSession = current.RestoreSession
+                RestoreSession = current.RestoreSession,
+                MicrophoneEnabled = current.MicrophoneEnabled,
+                CameraEnabled = current.CameraEnabled
             };
 
             Text = "Configuraci\u00F3n \u00B7 ArrobAMO";
-            ClientSize = new Size(620, 470);
-            MinimumSize = new Size(620, 470);
-            MaximumSize = new Size(620, 470);
+            ClientSize = new Size(640, 520);
+            MinimumSize = new Size(640, 520);
+            MaximumSize = new Size(640, 520);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Diagnostics;
 using System.IO;
@@ -141,7 +141,7 @@ namespace ArrobAMO {
    DrawDevice(microphoneLabel,"MIC",securityManager.MicrophoneEnabled,PrivacyInUse("microphone"));
   }
   void DrawDevice(Label label,string name,bool enabled,bool? inUse){
-   label.Text=name+(enabled?" ON":" OFF")+(inUse==true?" *":"");
+   label.Text=name+(enabled?" PERM":" BLOQ")+(inUse==true?" *":"");
    label.ForeColor=!enabled?(inUse==true?AmoTheme.Warning:AmoTheme.Danger):
                    inUse==true?AmoTheme.Success:AmoTheme.TextMuted;
    tooltips.SetToolTip(label,name+": "+(enabled?"permitido para nuevas solicitudes":"bloqueado para nuevas solicitudes")+
@@ -161,12 +161,27 @@ namespace ArrobAMO {
    string two=Path.Combine(dir,"00-EJEMPLO-Abrir-Documentacion.arrobamo");
    if(!File.Exists(two))File.WriteAllText(two,"# Ejemplo seguro: abrir documentación pública (ejecutar solo manualmente)\r\nNAV https://developer.mozilla.org/es/\r\n");
   }
+  async Task CopyPageContextForAI(){
+   var web=Active();
+   if(web==null || web.CoreWebView2==null || web.Source==null){
+    ShowToast("No hay una página activa para preparar contexto.",AmoTheme.Warning);return;
+   }
+   string site=web.Source.GetLeftPart(UriPartial.Authority);
+   string title=web.CoreWebView2.DocumentTitle ?? "";
+   if(title.Length>180)title=title.Substring(0,180);
+   string context="Contexto preparado manualmente desde ArrobAMO\r\nSitio: "+site+
+     "\r\nTítulo: "+title+
+     "\r\nNo se copiaron cookies, contraseñas, formularios, URL con parámetros ni contenido privado.";
+   try {Clipboard.SetText(context);ShowToast("Contexto mínimo copiado. Pegalo solo en la IA que elijas.",AmoTheme.Success);}
+   catch {ShowToast("No se pudo copiar el contexto.",AmoTheme.Warning);}
+   await Task.CompletedTask;
+  }
   string GetHelpHtml(){
    return @"<!doctype html><html lang='es'><head><meta charset='utf-8'><title>AyudAMO · ArrobAMO</title>
    <style>body{font:16px Segoe UI,sans-serif;background:#111827;color:#f8fafc;max-width:880px;margin:32px auto;padding:20px;line-height:1.6}
    h1{font-size:32px}h2{margin-top:30px;color:#8bd9f4}section{background:#1f2937;padding:16px 22px;border-radius:14px;margin:12px 0}
    code{color:#a7f3d0}button{background:#2563eb;color:white;border:0;border-radius:8px;padding:11px;cursor:pointer;margin:6px}
-   small{color:#cbd5e1}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.1</h1>
+   small{color:#cbd5e1}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.2</h1>
    <p>Ayuda local. Escribí <code>/ayudAMO</code>, <code>/help</code> o <code>arrobamo://ayudamo</code> en la barra de direcciones.</p>
    <section><h2>Micrófono y cámara</h2><p>Clic en MIC o CAM para permitir o bloquear NUEVAS solicitudes de sitios dentro de ArrobAMO.
    Clic derecho: permisos por sitio y ajustes de privacidad de Windows. Los controles no apagan físicamente los dispositivos.

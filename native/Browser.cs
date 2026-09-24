@@ -179,6 +179,7 @@ namespace ArrobAMO
             startupAI = initialAI;
             startupElite = initialElite;
             Text = privateMode ? "ArrobAMO ? Privado" : "ArrobAMO";
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             Width = 1380;
             Height = 880;
             MinimumSize = new Size(960, 620);
@@ -390,9 +391,13 @@ namespace ArrobAMO
                 ShowToast("MIC esta deshabilitado. Hacé clic en MIC para habilitarlo.", AmoTheme.Warning);
                 return;
             }
-            var web = tabs.TabPages.Cast<TabPage>().SelectMany(p => p.Controls.OfType<WebView2>())
-                .FirstOrDefault(w => w.Source != null && w.Source.Host == "127.0.0.1" &&
-                                     w.Source.Port == 18771 && w.Source.Scheme == "http");
+            var web = aiReady && aiWeb.CoreWebView2 != null && aiWeb.Source != null &&
+                      aiWeb.Source.Host == "127.0.0.1" && aiWeb.Source.Port == 18771 &&
+                      aiWeb.Source.Scheme == "http" ? aiWeb : null;
+            if (web == null)
+                web = tabs.TabPages.Cast<TabPage>().SelectMany(p => p.Controls.OfType<WebView2>())
+                    .FirstOrDefault(w => w.Source != null && w.Source.Host == "127.0.0.1" &&
+                                         w.Source.Port == 18771 && w.Source.Scheme == "http");
             if (web == null || web.CoreWebView2 == null)
             {
                 var previous = tabs.SelectedTab;
@@ -669,7 +674,7 @@ namespace ArrobAMO
 
             AmoTheme.StyleMenu(scriptsMenu);
             AddScriptMenuItem("Redactar script", delegate { EditScript(null); });
-            AddScriptMenuItem("Scripts predeterminados", delegate { ShowScriptManager(); });
+            AddScriptMenuItem("Ejemplos predeterminados (ejecutar manualmente)", delegate { ShowScriptManager(); });
             AddScriptMenuItem("Importar script", delegate { ImportScript(); });
             AddScriptMenuItem("Exportar último script", delegate { ExportLastScript(); });
             AddScriptMenuItem("Mis scripts", delegate { ShowScriptManager(); });
@@ -685,6 +690,7 @@ namespace ArrobAMO
             AmoTheme.StyleMenu(mainMenu);
             AddMainMenuItem("Nueva pestaña", async delegate { await AddTab("https://desarrollamo.com.ar/"); });
             AddMainMenuItem("Abrir AvatarAMO", delegate { Navigate("arrobamo://avataramo"); });
+            AddMainMenuItem("Preparar contexto para IA (copiar)", async delegate { await CopyPageContextForAI(); });
             AddMainMenuItem("AyudAMO / help", delegate { Navigate("arrobamo://ayudamo"); });
             AddMainMenuItem("Estado de conexiones", delegate { ShowConnectivity(); });
             AddMainMenuItem("Historial", delegate { ShowHistory(); });
@@ -941,6 +947,8 @@ namespace ArrobAMO
                 settings.ShowMetrics = f.Value.ShowMetrics;
                 settings.ExpandSidebarAtStart = f.Value.ExpandSidebarAtStart;
                 settings.RestoreSession = f.Value.RestoreSession;
+                settings.MicrophoneEnabled = f.Value.MicrophoneEnabled;
+                settings.CameraEnabled = f.Value.CameraEnabled;
                 settings.Save(SettingsFile);
                 UpdateResponsiveChrome();
                 if (settings.ExpandSidebarAtStart != sidebarExpanded) ToggleSidebar();
@@ -1148,7 +1156,17 @@ namespace ArrobAMO
                     return;
                 }
                 if (msg.StartsWith("AMO|", StringComparison.Ordinal))
+                {
+                    // Solo nuestras páginas internas pueden ejecutar comandos del host.
+                    // Las páginas externas, incluso sus iframes about:blank, quedan excluidas.
+                    string currentPage = CanonicalInternal(Convert.ToString(page.Tag));
+                    bool trustedPage = IsInternal(currentPage, "inicio") || IsInternal(currentPage, "ayudamo");
+                    string source = e.Source ?? "";
+                    bool internalDocument = source.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase) ||
+                                            source.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase);
+                    if (!trustedPage || !internalDocument) return;
                     HandleInternalMessage(msg.Substring(4));
+                }
             };
 
             web.CoreWebView2.NavigationStarting += delegate(object sender, CoreWebView2NavigationStartingEventArgs e)
@@ -1508,6 +1526,9 @@ h1{font-size:46px;letter-spacing:-1.8px;margin:0 0 6px}h1 b{font-weight:800}.sub
                 var scripts = web.CoreWebView2.Environment.CreateContextMenuItem("Mis scripts", null, CoreWebView2ContextMenuItemKind.Command);
                 scripts.CustomItemSelected += delegate { BeginInvoke(new Action(ShowScriptManager)); };
                 e.MenuItems.Insert(2, scripts);
+                var context = web.CoreWebView2.Environment.CreateContextMenuItem("Preparar contexto para IA (copiar)", null, CoreWebView2ContextMenuItemKind.Command);
+                context.CustomItemSelected += delegate { BeginInvoke(new Action(async delegate { await CopyPageContextForAI(); })); };
+                e.MenuItems.Insert(3, context);
             };
         }
 
@@ -1795,7 +1816,9 @@ document.addEventListener('change',function(ev){
         {
             if (String.IsNullOrWhiteSpace(lastScriptPath) || !File.Exists(lastScriptPath))
             {
-                var files = Directory.GetFiles(ScriptsDir, "*.arrobamo").OrderByDescending(File.GetLastWriteTime).ToArray();
+                var files = Directory.GetFiles(ScriptsDir, "*.arrobamo")
+                    .Where(p => !Path.GetFileName(p).StartsWith("00-EJEMPLO-", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(File.GetLastWriteTime).ToArray();
                 if (files.Length == 0) { MessageBox.Show("Todavía no hay scripts.", "ArrobAMO"); return; }
                 lastScriptPath = files[0];
             }
@@ -1879,7 +1902,7 @@ document.addEventListener('change',function(ev){
         {
             if (String.IsNullOrWhiteSpace(lastScriptPath) || !File.Exists(lastScriptPath))
             {
-                var files=Directory.GetFiles(ScriptsDir,"*.arrobamo").OrderByDescending(File.GetLastWriteTime).ToArray();
+                var files=Directory.GetFiles(ScriptsDir,"*.arrobamo").Where(path => !Path.GetFileName(path).StartsWith("00-EJEMPLO-",StringComparison.OrdinalIgnoreCase)).OrderByDescending(File.GetLastWriteTime).ToArray();
                 if(files.Length==0){MessageBox.Show("Todavía no hay Loops guardados.","ArrobAMO");return;}
                 lastScriptPath=files[0];
             }
@@ -1947,14 +1970,41 @@ document.addEventListener('change',function(ev){
         {
             using(var f=new Form())
             {
-                f.Text="Mis scripts - ArrobAMO";f.Width=620;f.Height=420;f.StartPosition=FormStartPosition.CenterParent;
-                var list=new ListBox{Left=12,Top=12,Width=580,Height=300,Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Bottom};
-                foreach(var file in Directory.GetFiles(ScriptsDir,"*.arrobamo").OrderByDescending(File.GetLastWriteTime))list.Items.Add(file);
-                var edit=new Button{Text="Editar",Left=12,Top=325,Width=90};var run=new Button{Text="Ejecutar",Left=108,Top=325,Width=90};var mini=new Button{Text="Minimizado",Left=204,Top=325,Width=100};
+                f.Text="Scripts · ArrobAMO"; f.ClientSize=new Size(800,550);
+                f.StartPosition=FormStartPosition.CenterParent; f.BackColor=AmoTheme.Bg; f.ForeColor=AmoTheme.Text;
+                f.Font=AmoTheme.UI(9f);
+                var title=new Label{Text="Mis scripts · ejemplos y automatizaciones",Left=20,Top=16,Width=735,Height=31,
+                    Font=AmoTheme.UI(16f,FontStyle.Bold),ForeColor=AmoTheme.Text};
+                var hint=new Label{Text="Los ejemplos NO se ejecutan automáticamente. Elegí uno para ver su contenido.",Left=20,Top=54,Width=740,Height=29,
+                    ForeColor=AmoTheme.TextSoft};
+                var list=new ListBox{Left=20,Top=88,Width=754,Height=286,Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right,
+                    BackColor=AmoTheme.Surface,ForeColor=AmoTheme.Text,Font=AmoTheme.UI(9f)};
+                foreach(var file in Directory.GetFiles(ScriptsDir,"*.arrobamo").OrderBy(Path.GetFileName))
+                    list.Items.Add(file);
+                var preview=new Label{Text="Seleccioná un script para previsualizarlo.",Left=20,Top=382,Width=750,Height=62,
+                    ForeColor=AmoTheme.TextSoft,AutoEllipsis=true};
+                list.SelectedIndexChanged+=delegate {
+                    string path=Convert.ToString(list.SelectedItem);
+                    if(String.IsNullOrEmpty(path)||!File.Exists(path))return;
+                    string text=File.ReadAllText(path,Encoding.UTF8);
+                    preview.Text=Path.GetFileName(path)+"\n"+text.Substring(0,Math.Min(240,text.Length));
+                };
+                var edit=new AmoButton{Text="Editar",Variant=AmoButtonVariant.Secondary,Left=20,Top=471,Width=128,Height=39};
+                var run=new AmoButton{Text="Ejecutar",Variant=AmoButtonVariant.Primary,Left=156,Top=471,Width=128,Height=39};
+                var mini=new AmoButton{Text="Minimizado",Variant=AmoButtonVariant.Outline,Left=292,Top=471,Width=135,Height=39};
+                var close=new AmoButton{Text="Cerrar",Variant=AmoButtonVariant.Secondary,Left=652,Top=471,Width=122,Height=39};
                 edit.Click+=delegate{if(list.SelectedItem!=null)EditScript(list.SelectedItem.ToString());};
-                run.Click+=async delegate{if(list.SelectedItem!=null){lastScriptPath=list.SelectedItem.ToString();await RunScript(lastScriptPath,false);}};
-                mini.Click+=async delegate{if(list.SelectedItem!=null){lastScriptPath=list.SelectedItem.ToString();await RunScript(lastScriptPath,true);}};
-                f.Controls.Add(list);f.Controls.Add(edit);f.Controls.Add(run);f.Controls.Add(mini);f.ShowDialog(this);
+                run.Click+=async delegate{if(list.SelectedItem!=null && MessageBox.Show(f,
+                    "¿Ejecutar el script seleccionado?\n"+Path.GetFileName(list.SelectedItem.ToString()),
+                    "Confirmar ejecución",MessageBoxButtons.YesNo,MessageBoxIcon.Question)==DialogResult.Yes){
+                    lastScriptPath=list.SelectedItem.ToString();f.Close();await RunScript(lastScriptPath,false);}};
+                mini.Click+=async delegate{if(list.SelectedItem!=null && MessageBox.Show(f,
+                    "¿Ejecutar minimizado el script seleccionado?\n"+Path.GetFileName(list.SelectedItem.ToString()),
+                    "Confirmar ejecución",MessageBoxButtons.YesNo,MessageBoxIcon.Question)==DialogResult.Yes){
+                    lastScriptPath=list.SelectedItem.ToString();f.Close();await RunScript(lastScriptPath,true);}};
+                close.Click+=delegate{f.Close();};
+                f.Controls.AddRange(new Control[]{title,hint,list,preview,edit,run,mini,close});
+                f.ShowDialog(this);
             }
         }
 
