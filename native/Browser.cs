@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -36,7 +36,7 @@ namespace ArrobAMO
         }
     }
 
-    public sealed class BrowserForm : Form
+    public sealed partial class BrowserForm : Form
     {
         readonly Color Ink = AmoTheme.SurfaceDark;
         readonly Color Ink2 = AmoTheme.SurfaceDark2;
@@ -168,6 +168,8 @@ namespace ArrobAMO
             enterpriseStore = new AmoEnterpriseStore(DataRoot);
             if (privateMode) Directory.CreateDirectory(privateRoot);
             securityManager = new AmoSecurityManager(privateMode ? privateRoot : DataRoot, this, ShowToast);
+            securityManager.MicrophoneEnabled = privateMode || settings.MicrophoneEnabled;
+            securityManager.CameraEnabled = privateMode || settings.CameraEnabled;
             startupUrlExplicit = !String.IsNullOrWhiteSpace(initialUrl);
             startupUrl = startupUrlExplicit ? CanonicalInternal(initialUrl) : CanonicalInternal(settings.HomeUrl);
             startupScript = initialScript;
@@ -186,6 +188,8 @@ namespace ArrobAMO
             KeyPreview = true;
 
             BuildBrand();
+            SetupNetworkLabels();
+            SeedDefaultScripts();
             BuildNav();
             BuildSidebar();
             BuildWorkspace();
@@ -225,6 +229,8 @@ namespace ArrobAMO
                 if (!restored)
                     await AddTab(startupUrl);
                 monitorTimer.Start();
+                networkTimer.Start();
+                await RefreshNetwork();
                 if (startupRecord) StartRecording();
                 if (startupImport) BeginInvoke(new Action(ShowImportData));
                 if (startupAI) BeginInvoke(new Action(async delegate { await ShowAI("ChatGPT", "https://chatgpt.com/"); }));
@@ -235,6 +241,7 @@ namespace ArrobAMO
             FormClosed += delegate
             {
                 monitorTimer.Stop();
+                networkTimer.Stop();
                 cpuCounter.Dispose();
                 if (!privateMode)
                 {
@@ -295,6 +302,7 @@ namespace ArrobAMO
             gpuLabel.Visible = settings.ShowMetrics && ClientSize.Width >= 800;
             cameraLabel.Visible = ClientSize.Width >= 800;
             microphoneLabel.Visible = ClientSize.Width >= 800;
+            UpdateNetworkVisibility();
             loopState.Visible = ClientSize.Width >= 1180;
             home.Visible = ClientSize.Width >= 900;
             securityLabel.Visible = ClientSize.Width >= 760;
@@ -326,6 +334,8 @@ namespace ArrobAMO
             brand.Controls.Add(voiceMark);
             tooltips.SetToolTip(voiceMark, "Clic: activar o pausar voz; clic derecho: opciones de AvatarAMO");
             voiceMark.MouseUp += VoiceMark_MouseUp;
+            microphoneLabel.Cursor = Cursors.Hand; cameraLabel.Cursor = Cursors.Hand;
+            microphoneLabel.MouseUp += DeviceMouseUp; cameraLabel.MouseUp += DeviceMouseUp;
 
             logo.Text = "ArrobAMO";
             logo.Left = 60;
@@ -340,8 +350,8 @@ namespace ArrobAMO
             ConfigureMetric(gpuLabel, "GPU --", 382);
             ConfigureMetric(cameraLabel, "CAM ?", 468);
             ConfigureMetric(microphoneLabel, "MIC ?", 548);
-            tooltips.SetToolTip(cameraLabel, "Uso de cámara informado por el registro de privacidad de Windows; puede existir un retraso.");
-            tooltips.SetToolTip(microphoneLabel, "Uso de micrófono informado por el registro de privacidad de Windows; puede existir un retraso.");
+            tooltips.SetToolTip(cameraLabel, "Clic: habilitar/bloquear cÃ¡mara en ArrobAMO; clic derecho: permisos.");
+            tooltips.SetToolTip(microphoneLabel, "Clic: habilitar/bloquear micrÃ³fono en ArrobAMO; clic derecho: permisos.");
 
             aiButton.Text = "Conectar IA";
             aiButton.Width = 118;
@@ -375,6 +385,11 @@ namespace ArrobAMO
 
         async Task RunAvatarVoice(string script)
         {
+            if (!securityManager.MicrophoneEnabled && script.Contains("getElementById('mic')"))
+            {
+                ShowToast("MIC esta deshabilitado. Hacé clic en MIC para habilitarlo.", AmoTheme.Warning);
+                return;
+            }
             var web = tabs.TabPages.Cast<TabPage>().SelectMany(p => p.Controls.OfType<WebView2>())
                 .FirstOrDefault(w => w.Source != null && w.Source.Host == "127.0.0.1" &&
                                      w.Source.Port == 18771 && w.Source.Scheme == "http");
@@ -654,6 +669,7 @@ namespace ArrobAMO
 
             AmoTheme.StyleMenu(scriptsMenu);
             AddScriptMenuItem("Redactar script", delegate { EditScript(null); });
+            AddScriptMenuItem("Scripts predeterminados", delegate { ShowScriptManager(); });
             AddScriptMenuItem("Importar script", delegate { ImportScript(); });
             AddScriptMenuItem("Exportar último script", delegate { ExportLastScript(); });
             AddScriptMenuItem("Mis scripts", delegate { ShowScriptManager(); });
@@ -669,6 +685,8 @@ namespace ArrobAMO
             AmoTheme.StyleMenu(mainMenu);
             AddMainMenuItem("Nueva pestaña", async delegate { await AddTab("https://desarrollamo.com.ar/"); });
             AddMainMenuItem("Abrir AvatarAMO", delegate { Navigate("arrobamo://avataramo"); });
+            AddMainMenuItem("AyudAMO / help", delegate { Navigate("arrobamo://ayudamo"); });
+            AddMainMenuItem("Estado de conexiones", delegate { ShowConnectivity(); });
             AddMainMenuItem("Historial", delegate { ShowHistory(); });
             AddMainMenuItem("Marcadores", delegate { ShowBookmarks(); });
             AddMainMenuItem("Descargas", delegate { downloadManager.Show(this); });
@@ -1198,7 +1216,12 @@ namespace ArrobAMO
                     AddHistory(web.Source.ToString(), web.CoreWebView2.DocumentTitle);
             };
 
-            if (IsInternal(url, "inicio"))
+            if (IsInternal(url, "ayudamo"))
+            {
+                page.Tag = "arrobamo://ayudamo"; page.Text = "AyudAMO";
+                web.NavigateToString(GetHelpHtml());
+            }
+            else if (IsInternal(url, "inicio"))
             {
                 page.Tag = "arrobamo://inicio";
                 page.Text = "Inicio";
@@ -1220,6 +1243,7 @@ namespace ArrobAMO
             else if (command == "LOOP") ShowLoopMenu();
             else if (command == "SCRIPTS") ShowScriptsMenu();
             else if (command == "UIKIT") ShowUIKit();
+            else if (command == "HELP") Navigate("arrobamo://ayudamo");
         }
 
         string GetStartPageHtml()
@@ -1478,6 +1502,12 @@ h1{font-size:46px;letter-spacing:-1.8px;margin:0 0 6px}h1 b{font-weight:800}.sub
                     BeginInvoke(new Action(delegate { Navigate("arrobamo://avataramo"); }));
                 };
                 e.MenuItems.Insert(0, avatar);
+                var help = web.CoreWebView2.Environment.CreateContextMenuItem("AyudAMO / help", null, CoreWebView2ContextMenuItemKind.Command);
+                help.CustomItemSelected += delegate { BeginInvoke(new Action(delegate { Navigate("arrobamo://ayudamo"); })); };
+                e.MenuItems.Insert(1, help);
+                var scripts = web.CoreWebView2.Environment.CreateContextMenuItem("Mis scripts", null, CoreWebView2ContextMenuItemKind.Command);
+                scripts.CustomItemSelected += delegate { BeginInvoke(new Action(ShowScriptManager)); };
+                e.MenuItems.Insert(2, scripts);
             };
         }
 
@@ -2481,6 +2511,7 @@ document.addEventListener('change',function(ev){
         {
             value = (value ?? "").Trim();
             if (value.Length == 0) return "arrobamo://inicio";
+            if (value.Equals("/ayudamo", StringComparison.OrdinalIgnoreCase) || value.Equals("/help", StringComparison.OrdinalIgnoreCase) || value.Equals("arrobamo://help", StringComparison.OrdinalIgnoreCase)) return "arrobamo://ayudamo";
             if (String.Equals(value, "http://localhost/avataramo", StringComparison.OrdinalIgnoreCase) || String.Equals(value, "http://localhost/avataramo/", StringComparison.OrdinalIgnoreCase)) return "arrobamo://avataramo";
             if (value.StartsWith("amo://", StringComparison.OrdinalIgnoreCase))
                 return "arrobamo://" + value.Substring(6);
@@ -2520,6 +2551,12 @@ document.addEventListener('change',function(ev){
             input = CanonicalInternal(input);
             if (String.IsNullOrWhiteSpace(input)) input = "arrobamo://inicio";
 
+            if (IsInternal(input, "ayudamo"))
+            {
+                var target = Active();
+                if (target != null) { if (tabs.SelectedTab != null) { tabs.SelectedTab.Tag = "arrobamo://ayudamo"; tabs.SelectedTab.Text = "AyudAMO"; } target.NavigateToString(GetHelpHtml()); address.Text = "arrobamo://ayudamo"; }
+                return;
+            }
             if (IsInternal(input, "settings"))
             {
                 ShowSettings();
@@ -2648,8 +2685,7 @@ document.addEventListener('change',function(ev){
                 cpuLabel.Text = "CPU " + Math.Round(cpu) + "%";
                 ramLabel.Text = "RAM " + Math.Round(ram) + "%";
                 gpuLabel.Text = gpu < 0 ? "GPU --" : "GPU " + Math.Round(gpu) + "%";
-                SetPrivacyLabel(cameraLabel, "CAM", PrivacyInUse("webcam"));
-                SetPrivacyLabel(microphoneLabel, "MIC", PrivacyInUse("microphone"));
+                UpdateDeviceLabels();
                 cpuLabel.ForeColor = MetricColor(cpu);
                 ramLabel.ForeColor = MetricColor(ram);
                 gpuLabel.ForeColor = gpu < 0 ? Muted : MetricColor(gpu);

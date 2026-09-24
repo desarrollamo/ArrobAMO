@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
@@ -11,6 +11,8 @@ namespace ArrobAMO
         public bool ShowMetrics = true;
         public bool ExpandSidebarAtStart = true;
         public bool RestoreSession = true;
+        public bool MicrophoneEnabled = true;
+        public bool CameraEnabled = true;
 
         public static AmoSettings Load(string path)
         {
@@ -28,6 +30,8 @@ namespace ArrobAMO
                     else if (key == "metrics") s.ShowMetrics = val == "1";
                     else if (key == "sidebar") s.ExpandSidebarAtStart = val == "1";
                     else if (key == "restore_session") s.RestoreSession = val != "0";
+                    else if (key == "mic_enabled") s.MicrophoneEnabled = val != "0";
+                    else if (key == "cam_enabled") s.CameraEnabled = val != "0";
                 }
             }
             catch { }
@@ -44,7 +48,9 @@ namespace ArrobAMO
                 "home=" + (String.IsNullOrWhiteSpace(HomeUrl) ? "arrobamo://inicio" : HomeUrl),
                 "metrics=" + (ShowMetrics ? "1" : "0"),
                 "sidebar=" + (ExpandSidebarAtStart ? "1" : "0"),
-                "restore_session=" + (RestoreSession ? "1" : "0")
+                "restore_session=" + (RestoreSession ? "1" : "0"),
+                "mic_enabled=" + (MicrophoneEnabled ? "1" : "0"),
+                "cam_enabled=" + (CameraEnabled ? "1" : "0")
             });
         }
     }

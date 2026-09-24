@@ -11,6 +11,8 @@ namespace ArrobAMO
     public sealed class AmoSecurityManager
     {
         readonly string file;
+        public bool MicrophoneEnabled { get; set; }
+        public bool CameraEnabled { get; set; }
         readonly Dictionary<string, CoreWebView2PermissionState> rules =
             new Dictionary<string, CoreWebView2PermissionState>(StringComparer.OrdinalIgnoreCase);
         readonly Form owner;
@@ -18,6 +20,7 @@ namespace ArrobAMO
 
         public AmoSecurityManager(string root, Form ownerForm, Action<string, Color> notifier)
         {
+            MicrophoneEnabled = true; CameraEnabled = true;
             owner = ownerForm;
             notify = notifier;
             file = Path.Combine(root, "permissions.txt");
@@ -37,6 +40,11 @@ namespace ArrobAMO
 
         void HandlePermission(CoreWebView2PermissionRequestedEventArgs e)
         {
+            if ((e.PermissionKind == CoreWebView2PermissionKind.Microphone && !MicrophoneEnabled) ||
+                (e.PermissionKind == CoreWebView2PermissionKind.Camera && !CameraEnabled))
+            {
+                e.State = CoreWebView2PermissionState.Deny; e.Handled = true; e.SavesInProfile = false; return;
+            }
             string host = HostFrom(e.Uri);
             string key = host + "|" + e.PermissionKind;
             CoreWebView2PermissionState saved;
