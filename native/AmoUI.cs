@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -250,9 +250,9 @@ namespace ArrobAMO
         public AmoProgress()
         {
             Height = 3;
+            SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
             BackColor = Color.Transparent;
             ForeColor = AmoTheme.Text;
-            SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -307,6 +307,125 @@ namespace ArrobAMO
         {
             if (disposing) timer.Dispose();
             base.Dispose(disposing);
+        }
+    }
+}
+
+
+namespace ArrobAMO
+{
+    public sealed class AmoLoadingDots : Control
+    {
+        readonly Timer timer = new Timer();
+        int frame;
+        public AmoLoadingDots()
+        {
+            Width = 54; Height = 18; ForeColor = AmoTheme.Text;
+            timer.Interval = 220;
+            timer.Tick += delegate { frame = (frame + 1) % 3; Invalidate(); };
+            VisibleChanged += delegate { if (Visible) timer.Start(); else timer.Stop(); };
+            SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+        }
+        protected override void Dispose(bool disposing) { if (disposing) timer.Dispose(); base.Dispose(disposing); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            for (int i=0;i<3;i++)
+            {
+                int a = i == frame ? 255 : 100;
+                using (var b = new SolidBrush(Color.FromArgb(a, ForeColor))) e.Graphics.FillEllipse(b, 3+i*17, 5, 8, 8);
+            }
+        }
+    }
+
+    public sealed class AmoSwitch : Control
+    {
+        bool state;
+        public bool Checked { get { return state; } set { state = value; Invalidate(); } }
+        public event EventHandler CheckedChanged;
+        public AmoSwitch() { Width=44; Height=24; Cursor=Cursors.Hand; SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer,true); }
+        protected override void OnClick(EventArgs e) { state=!state; Invalidate(); if(CheckedChanged!=null) CheckedChanged(this,EventArgs.Empty); base.OnClick(e); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var r = new Rectangle(0,1,Width-1,Height-3);
+            using(var path=AmoTheme.RoundRect(r,Height/2)) using(var b=new SolidBrush(state?AmoTheme.Text:Color.FromArgb(205,205,205))) e.Graphics.FillPath(b,path);
+            int d=18; int x=state?Width-d-3:3;
+            using(var b=new SolidBrush(Color.White)) e.Graphics.FillEllipse(b,x,(Height-d)/2,d,d);
+        }
+    }
+}
+
+
+namespace ArrobAMO
+{
+    public sealed class AmoChip : Label
+    {
+        public AmoChip()
+        {
+            AutoSize=false; Height=28; Width=110; TextAlign=ContentAlignment.MiddleCenter;
+            BackColor=AmoTheme.SurfaceSoft; ForeColor=AmoTheme.Text; Font=AmoTheme.UI(8.5f);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using(var path=AmoTheme.RoundRect(new Rectangle(0,0,Width-1,Height-1),14))
+            using(var b=new SolidBrush(BackColor)) e.Graphics.FillPath(b,path);
+            TextRenderer.DrawText(e.Graphics,Text,Font,ClientRectangle,ForeColor,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    public sealed class AmoCard : Panel
+    {
+        public AmoCard()
+        {
+            BackColor=AmoTheme.Surface; Padding=new Padding(16);
+            SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer,true);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using(var p=new Pen(AmoTheme.Border,1f))
+            using(var path=AmoTheme.RoundRect(new Rectangle(0,0,Width-1,Height-1),AmoTheme.RadiusMedium)) e.Graphics.DrawPath(p,path);
+        }
+    }
+
+    public sealed class AmoSkeleton : Control
+    {
+        readonly Timer timer=new Timer(); int phase;
+        public AmoSkeleton()
+        {
+            BackColor=AmoTheme.SurfaceSoft; Height=16;
+            timer.Interval=90; timer.Tick+=delegate{phase=(phase+7)%100;Invalidate();}; timer.Start();
+            SetStyle(ControlStyles.UserPaint|ControlStyles.OptimizedDoubleBuffer,true);
+        }
+        protected override void Dispose(bool disposing){if(disposing)timer.Dispose();base.Dispose(disposing);}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            using(var bg=new SolidBrush(AmoTheme.SurfaceSoft)) e.Graphics.FillRectangle(bg,ClientRectangle);
+            int w=Math.Max(20,Width/4); int x=(Width+w)*phase/100-w;
+            using(var b=new SolidBrush(Color.FromArgb(28,255,255,255))) e.Graphics.FillRectangle(b,x,0,w,Height);
+        }
+    }
+}
+
+
+namespace ArrobAMO
+{
+    public sealed class AmoModalForm : Form
+    {
+        public AmoModalForm(string title,string message,string confirmText,bool danger)
+        {
+            Text=title; Width=470; Height=230; StartPosition=FormStartPosition.CenterParent;
+            FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
+            BackColor=AmoTheme.Surface; ForeColor=AmoTheme.Text; KeyPreview=true;
+            var h=new Label{Text=title,Left=24,Top=22,Width=400,Height=30,Font=AmoTheme.UI(15f,FontStyle.Bold),ForeColor=AmoTheme.Text};
+            var m=new Label{Text=message,Left=24,Top=64,Width=410,Height=62,Font=AmoTheme.UI(9.5f),ForeColor=AmoTheme.TextSoft};
+            var cancel=new AmoButton{Text="Cancelar",Variant=AmoButtonVariant.Secondary,Left=238,Top=144,Width=90,DialogResult=DialogResult.Cancel};
+            var ok=new AmoButton{Text=confirmText,Variant=danger?AmoButtonVariant.Danger:AmoButtonVariant.Primary,Left=338,Top=144,Width=96,DialogResult=DialogResult.OK};
+            Controls.Add(h);Controls.Add(m);Controls.Add(cancel);Controls.Add(ok);
+            AcceptButton=ok;CancelButton=cancel;
         }
     }
 }

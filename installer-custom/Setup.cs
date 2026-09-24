@@ -9,31 +9,46 @@ using Microsoft.Win32;
 
 namespace ArrobAMOSetup
 {
-    public sealed class PyramidMark : Control
+    public sealed class OrbitMark : Control
     {
-        public PyramidMark()
+        public OrbitMark()
         {
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            DoubleBuffered = true;
+            SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint, true);
+            BackColor = Color.Transparent;
         }
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var b = new SolidBrush(ForeColor))
+            float size = Math.Min(Width, Height);
+            float cx = Width/2f, cy = Height/2f;
+            using (var pen = new Pen(ForeColor, Math.Max(2f,size*.055f)))
+            using (var brush = new SolidBrush(ForeColor))
             {
-                float h = Height - 4, y = Height - 2, w = Math.Max(12, Width / 3f - 3);
-                e.Graphics.FillPolygon(b, new PointF[] { new PointF(2,y), new PointF(2+w/2,y-h*0.72f), new PointF(2+w,y) });
-                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width/2f-w/2,y), new PointF(Width/2f,2), new PointF(Width/2f+w/2,y) });
-                e.Graphics.FillPolygon(b, new PointF[] { new PointF(Width-w-2,y), new PointF(Width-2-w/2,y-h*0.62f), new PointF(Width-2,y) });
+                pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                float r1=size*.18f; e.Graphics.DrawEllipse(pen,cx-r1,cy-r1,r1*2,r1*2);
+                float r2=size*.34f; e.Graphics.DrawArc(pen,cx-r2,cy-r2,r2*2,r2*2,205,230);
+                float r3=size*.44f; e.Graphics.DrawArc(pen,cx-r3,cy-r3,r3*2,r3*2,28,125); e.Graphics.DrawArc(pen,cx-r3,cy-r3,r3*2,r3*2,190,118);
+                DrawDot(e.Graphics,brush,cx,cy,size*.39f,334,size*.055f);
+                DrawDot(e.Graphics,brush,cx,cy,size*.43f,99,size*.05f);
+                DrawDot(e.Graphics,brush,cx,cy,size*.40f,156,size*.06f);
             }
+        }
+        static void DrawDot(Graphics g, Brush b, float cx, float cy, float radius, float deg, float dot)
+        {
+            double a=deg*Math.PI/180.0;
+            float x=cx+(float)Math.Cos(a)*radius, y=cy+(float)Math.Sin(a)*radius;
+            g.FillEllipse(b,x-dot,y-dot,dot*2,dot*2);
         }
     }
     public sealed class SetupForm : Form
     {
-        readonly Color Ink = ColorTranslator.FromHtml("#111827");
-        readonly Color Pink = ColorTranslator.FromHtml("#FF5AA5");
-        readonly Color Sky = ColorTranslator.FromHtml("#7DD3FC");
-        readonly Color Mist = ColorTranslator.FromHtml("#E5E7EB");
+        readonly Color Ink = ColorTranslator.FromHtml("#141414");
+        readonly Color Bg = ColorTranslator.FromHtml("#F7F7F5");
+        readonly Color Muted = ColorTranslator.FromHtml("#B8B8B8");
+        readonly Color Border = ColorTranslator.FromHtml("#DDDDDA");
 
         readonly RichTextBox terms = new RichTextBox();
         readonly CheckBox accept = new CheckBox();
@@ -55,13 +70,13 @@ namespace ArrobAMOSetup
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
-            BackColor = Color.White;
+            BackColor = Bg;
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 
             var header = new Panel { Dock = DockStyle.Top, Height = 92, BackColor = Ink };
             Controls.Add(header);
 
-            var mark = new PyramidMark { Left = 24, Top = 20, Width = 76, Height = 46, ForeColor = Color.White, BackColor = Ink };
+            var mark = new OrbitMark { Left = 24, Top = 20, Width = 76, Height = 46, ForeColor = Color.White, BackColor = Ink };
             header.Controls.Add(mark);
 
             var title = new Label {
@@ -73,8 +88,8 @@ namespace ArrobAMOSetup
             header.Controls.Add(title);
 
             var subtitle = new Label {
-                Text = "Navegador · v0.3.2 · Tecnología con alma.",
-                ForeColor = Sky,
+                Text = "Navegador · v0.5.0 · Tecnología con alma.",
+                ForeColor = Muted,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true, Left = 119, Top = 58
             };
@@ -123,7 +138,7 @@ namespace ArrobAMOSetup
             install.Text = "Instalar";
             install.Left = 540; install.Top = 492; install.Width = 134; install.Height = 40;
             install.Enabled = false;
-            install.BackColor = Pink; install.ForeColor = Color.White;
+            install.BackColor = Ink; install.ForeColor = Color.White;
             install.FlatStyle = FlatStyle.Flat; install.FlatAppearance.BorderSize = 0;
             install.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             install.Click += Install_Click;
@@ -196,14 +211,14 @@ namespace ArrobAMOSetup
             };
             Controls.Add(desc);
 
-            AddWelcomeButton("Importar datos \u00B7 pr\u00F3ximamente", 32, 245, false, delegate { });
-            AddWelcomeButton("Conectar IA", 354, 245, true, delegate { LaunchBrowser(); });
+            AddWelcomeButton("Importar datos", 32, 245, true, delegate { LaunchImport(); });
+            AddWelcomeButton("Conectar IA", 354, 245, true, delegate { LaunchAI(); });
             AddWelcomeButton("Activar Loop", 32, 305, true, delegate { LaunchLoop(); });
             AddWelcomeButton("Abrir ArrobAMO", 354, 305, true, delegate { LaunchBrowser(); });
             AddWelcomeButton("Ver tutorial r\u00E1pido", 32, 365, true, delegate { Process.Start("https://github.com/desarrollamo/ArrobAMO"); });
 
             var note = new Label {
-                Text = "Importación de datos se habilitará cuando su migración sea real y verificable. Loop ya está disponible.",
+                Text = "Favoritos de Chrome, Edge, Brave y Opera ya pueden importarse. Historial, contrase\u00F1as y sesiones siguen deshabilitados hasta contar con una migraci\u00F3n segura.",
                 Left = 32, Top = 430, Width = 620, Height = 44,
                 Font = new Font("Segoe UI", 8.5f), ForeColor = Color.DimGray
             };
@@ -214,8 +229,8 @@ namespace ArrobAMOSetup
         {
             var b = new Button { Text = text, Left = left, Top = top, Width = 290, Height = 44, Enabled = enabled };
             b.FlatStyle = FlatStyle.Flat;
-            b.FlatAppearance.BorderColor = enabled ? Ink : Color.LightGray;
-            b.BackColor = enabled ? Color.White : Color.FromArgb(245,245,245);
+            b.FlatAppearance.BorderColor = enabled ? Ink : Border;
+            b.BackColor = enabled ? Color.White : Color.FromArgb(238,238,236);
             b.ForeColor = enabled ? Ink : Color.Gray;
             b.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             b.Click += action;
@@ -231,6 +246,16 @@ namespace ArrobAMOSetup
         {
             string exe = Path.Combine(Destination, "ArrobAMO.exe");
             if (File.Exists(exe)) Process.Start(exe, "--record");
+        }
+        void LaunchImport()
+        {
+            string exe = Path.Combine(Destination, "ArrobAMO.exe");
+            if (File.Exists(exe)) Process.Start(exe, "--import");
+        }
+        void LaunchAI()
+        {
+            string exe = Path.Combine(Destination, "ArrobAMO.exe");
+            if (File.Exists(exe)) Process.Start(exe, "--ai");
         }
         void Extract(string name)
         {
@@ -289,7 +314,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"))
             {
                 key.SetValue("DisplayName", "ArrobAMO");
-                key.SetValue("DisplayVersion", "0.3.2");
+                key.SetValue("DisplayVersion", "0.5.0");
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
                 key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));

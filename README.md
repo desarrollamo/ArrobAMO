@@ -1,4 +1,4 @@
-﻿# ArrobAMO
+# ArrobAMO
 
 ArrobAMO es el navegador del ecosistema DesarrollAMO.
 
@@ -6,7 +6,11 @@ ArrobAMO es el navegador del ecosistema DesarrollAMO.
 
 Repositorio oficial: desarrollamo/ArrobAMO.
 
-## Estado · v0.3.2
+## Novedades de la versión 0.5.0
+
+Ver [notas de versión](docs/RELEASE-0.5.0.md). Incluye AvatarAMO por voz, acceso interno, métricas y ajustes persistentes.
+
+## Funciones heredadas de v0.3.2 (historial)
 
 ### Navegación
 

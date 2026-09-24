@@ -1,4 +1,4 @@
-﻿# Build / temporales
+# Build / temporales
 DesarrollAMOBrowser.App/
 dist/
 *.zip
@@ -21,3 +21,17 @@ release-v0.3.1/
 dist-v0.3.2/
 release-v0.3.2/
 
+
+# Paquetes generados y copias locales
+dist-v0.4.0/
+dist-v0.5.0/
+release-v0.5.0/
+native/*.bak*
+native/*.tmp
+
+# Artefactos compilados y empaquetados: solo el codigo fuente vive en Git
+/dist-v*/
+/release-v*/
+/ArrobAMO-Setup-*.exe
+/native/*.bak*
+/native/*.tmp
