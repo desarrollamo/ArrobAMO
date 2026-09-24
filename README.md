@@ -1,10 +1,21 @@
-﻿# ArrobAMO
+# ArrobAMO
 
 ArrobAMO es el navegador del ecosistema DesarrollAMO.
 
 > Navegación + IA + automatización en un solo lugar.
 
 Repositorio oficial: desarrollamo/ArrobAMO.
+
+## Descargar ArrobAMO para Windows
+
+**[⬇ Descargar ArrobAMOInstaller.exe — Windows 10/11 x64](https://github.com/desarrollamo/ArrobAMO/releases/latest/download/ArrobAMOInstaller.exe)**
+
+Abrí el archivo EXE descargado, aceptá las condiciones y pulsá **Instalar**. El instalador crea accesos directos y registra la opción para desinstalar; no hace falta abrir un ZIP ni tener permisos de administrador. [Guía de instalación y requisitos](docs/INSTALAR-ARROBAMO.md).
+
+* La versión de Windows requiere Microsoft WebView2 Runtime. Si no está instalado, el asistente muestra el enlace oficial de Microsoft.
+* Las actualizaciones se instalan ejecutando una versión nueva del instalador con el navegador cerrado. Se conservan los datos del perfil local.
+* El instalador aún no está firmado digitalmente; verificá el origen de la descarga y su SHA-256 en la publicación.
+* Para pruebas manuales sigue disponible el [ZIP portátil](https://github.com/desarrollamo/ArrobAMO/releases/latest).
 
 ## Corrección 0.5.3.1
 

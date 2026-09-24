@@ -57,9 +57,22 @@ namespace ArrobAMOSetup
         readonly Label status = new Label();
         readonly ProgressBar progress = new ProgressBar();
 
+        string isolatedTestDirectory;
+        bool isolatedTest;
         string Destination
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "ArrobAMO"); }
+            get { return isolatedTest ? isolatedTestDirectory :
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "ArrobAMO"); }
+        }
+        internal void SetIsolatedTestDirectory(string directory)
+        {
+            string temp = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string proposed = Path.GetFullPath(directory);
+            if(!proposed.StartsWith(temp+"ArrobAMO-Installer-Integration-", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("La prueba solo puede instalar en una carpeta temporal aislada.");
+            if(Directory.Exists(proposed)) throw new InvalidOperationException("La carpeta de prueba ya existe.");
+            isolatedTestDirectory=proposed;
+            isolatedTest=true;
         }
 
         public SetupForm()
@@ -123,7 +136,7 @@ namespace ArrobAMOSetup
 
             launch.Text = "Abrir ArrobAMO al terminar";
             launch.Left = 24; launch.Top = 466; launch.Width = 330; launch.Height = 24;
-            launch.Checked = false;
+            launch.Checked = true;
             Controls.Add(launch);
 
             progress.Left = 24; progress.Top = 500; progress.Width = 460; progress.Height = 22;
@@ -142,6 +155,13 @@ namespace ArrobAMOSetup
             install.FlatStyle = FlatStyle.Flat; install.FlatAppearance.BorderSize = 0;
             install.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             install.Click += Install_Click;
+            var requirement = new Label
+            {
+                Text = "Windows 10/11 x64 Â· WebView2 Runtime requerido Â· sin permisos de administrador.",
+                Left = 24, Top = 563, Width = 650, Height = 20,
+                ForeColor = Color.DimGray, Font = new Font("Segoe UI", 8f)
+            };
+            Controls.Add(requirement);
             Controls.Add(install);
         }
 
@@ -156,17 +176,20 @@ namespace ArrobAMOSetup
             try
             {
                 install.Enabled = false; accept.Enabled = false;
-                Directory.CreateDirectory(Destination);
-
-                Extract("ArrobAMO.exe"); progress.Value = 1;
-                Extract("Microsoft.Web.WebView2.Core.dll"); progress.Value = 2;
-                Extract("Microsoft.Web.WebView2.WinForms.dll"); progress.Value = 3;
-                Extract("WebView2Loader.dll"); progress.Value = 4;
-                File.WriteAllText(Path.Combine(Destination, "LICENSE-USER.txt"), ReadResourceText("LICENSE-USER.txt"), Encoding.UTF8);
+                if (Environment.Is64BitOperatingSystem == false)
+                    throw new Exception("ArrobAMO requiere Windows de 64 bits.");
+                if (!isolatedTest && InstalledBrowserRunning())
+                    throw new Exception("CerrÃ¡ ArrobAMO y volvÃ© a intentar. No se reemplazÃ³ ninguna instalaciÃ³n activa.");
+                InstallPayload();
+                progress.Value = 4;
                 WriteUninstaller();
-                CreateShortcuts();
-                RegisterUninstall();
+                if (!isolatedTest)
+                {
+                    CreateShortcuts();
+                    RegisterUninstall();
+                }
                 progress.Value = 5;
+                status.Text = "Archivos, accesos y desinstalador registrados.";
 
                 status.Text = "Instalación completada.";
                 status.ForeColor = Color.ForestGreen;
@@ -174,7 +197,17 @@ namespace ArrobAMOSetup
                 install.Enabled = true;
 
 
-                if (launch.Checked)
+                bool runtimePresent=WebView2RuntimePresent();
+                if (!isolatedTest && !runtimePresent)
+                {
+                    launch.Checked=false;
+                    var answer=MessageBox.Show(
+                        "ArrobAMO se instaló, pero falta Microsoft WebView2 Runtime. ¿Abrir la página oficial de Microsoft para instalarlo?",
+                        "Falta WebView2 Runtime", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                    if(answer==DialogResult.Yes)
+                        Process.Start(new ProcessStartInfo("https://developer.microsoft.com/en-us/microsoft-edge/webview2/") { UseShellExecute=true });
+                }
+                if (launch.Checked && !isolatedTest && runtimePresent)
                     Process.Start(Path.Combine(Destination, "ArrobAMO.exe"));
 
                 ShowWelcome();
@@ -184,6 +217,7 @@ namespace ArrobAMOSetup
                 status.Text = "No se pudo completar la instalación.";
                 status.ForeColor = Color.Firebrick;
                 install.Enabled = true; accept.Enabled = true;
+                if (isolatedTest) throw;
                 MessageBox.Show(ex.Message, "Error de instalación", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -257,13 +291,56 @@ namespace ArrobAMOSetup
             string exe = Path.Combine(Destination, "ArrobAMO.exe");
             if (File.Exists(exe)) Process.Start(exe, "--ai");
         }
-        void Extract(string name)
+        static readonly string[] PayloadNames = new [] {
+            "ArrobAMO.exe", "Microsoft.Web.WebView2.Core.dll",
+            "Microsoft.Web.WebView2.WinForms.dll", "WebView2Loader.dll",
+            "LICENSE-USER.txt", "ArrobAMOUninstaller.exe"
+        };
+
+        void InstallPayload()
         {
-            string output = Path.Combine(Destination, name);
-            using (Stream input = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
+            string staging = Path.Combine(Path.GetTempPath(), "ArrobAMO-Setup-"+Guid.NewGuid().ToString("N"));
+            string backup = isolatedTest ? Path.Combine(Path.GetTempPath(), "ArrobAMO-Installer-Integration-Backup-"+Guid.NewGuid().ToString("N")) :
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArrobAMO", "InstallerBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss-fff"));
+            string[] committed = new string[PayloadNames.Length];
+            int commitCount = 0;
+            try
             {
-                if (input == null) throw new Exception("Falta recurso: " + name);
-                using (FileStream file = File.Create(output)) input.CopyTo(file);
+                Directory.CreateDirectory(staging);
+                foreach(string name in PayloadNames)
+                {
+                    string path = Path.Combine(staging,name);
+                    using(Stream input=Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
+                    {
+                        if(input == null) throw new IOException("Falta un archivo del instalador: "+name);
+                        using(FileStream output=File.Create(path)) input.CopyTo(output);
+                    }
+                    if(new FileInfo(path).Length < 200) throw new IOException("Archivo incompleto: "+name);
+                }
+                string version = FileVersionInfo.GetVersionInfo(Path.Combine(staging,"ArrobAMO.exe")).FileVersion;
+                if(version!="0.5.3.1") throw new IOException("Versión del instalador no coincide con los archivos.");
+                Directory.CreateDirectory(Destination);
+                Directory.CreateDirectory(backup);
+                foreach(string name in PayloadNames)
+                {
+                    string target=Path.Combine(Destination,name);
+                    if(File.Exists(target)) File.Copy(target,Path.Combine(backup,name),true);
+                    File.Copy(Path.Combine(staging,name),target,true);
+                    committed[commitCount++]=name;
+                }
+            }
+            catch
+            {
+                for(int i=commitCount-1;i>=0;i--)
+                {
+                    string name=committed[i], target=Path.Combine(Destination,name), old=Path.Combine(backup,name);
+                    try { if(File.Exists(old)) File.Copy(old,target,true); else if(File.Exists(target)) File.Delete(target); } catch { }
+                }
+                throw;
+            }
+            finally
+            {
+                try { if(Directory.Exists(staging)) Directory.Delete(staging,true); } catch {}
             }
         }
 
@@ -276,20 +353,49 @@ namespace ArrobAMOSetup
             }
         }
 
+        static bool WebView2RuntimePresent()
+        {
+            const string path=@"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
+            foreach(var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+            foreach(var view in new[] { RegistryView.Registry32, RegistryView.Registry64 })
+            {
+                try
+                {
+                    using(var root=RegistryKey.OpenBaseKey(hive,view))
+                    using(var key=root.OpenSubKey(path))
+                    {
+                        if(key==null)continue;
+                        string version=Convert.ToString(key.GetValue("pv"));
+                        if(!String.IsNullOrWhiteSpace(version) && version!="0.0.0.0")
+                            return true;
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+
+        bool InstalledBrowserRunning()
+        {
+            string root = Path.GetFullPath(Destination).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            foreach(var process in Process.GetProcessesByName("ArrobAMO"))
+            {
+                try
+                {
+                    string path = Path.GetFullPath(process.MainModule.FileName);
+                    if (path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                catch { return true; } // Don't overwrite an unknown running instance.
+                finally { process.Dispose(); }
+            }
+            return false;
+        }
+
         void WriteUninstaller()
         {
-            string self = Path.Combine(Destination, "Desinstalar.cmd");
-            string content =
-@"@echo off
-taskkill /IM ArrobAMO.exe /F >nul 2>nul
-timeout /t 1 /nobreak >nul
-reg delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"" /f >nul 2>nul
-del ""%USERPROFILE%\Desktop\ArrobAMO.lnk"" >nul 2>nul
-del ""%APPDATA%\Microsoft\Windows\Start Menu\Programs\ArrobAMO.lnk"" >nul 2>nul
-cd /d ""%TEMP%""
-rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
-";
-            File.WriteAllText(self, content, Encoding.ASCII);
+            string path = Path.Combine(Destination, "ArrobAMOUninstaller.exe");
+            if (!File.Exists(path)) throw new IOException("No se pudo instalar el desinstalador.");
+            // Profile stays in %LOCALAPPDATA%\ArrobAMO; only program files are managed here.
         }
 
         void CreateShortcuts()
@@ -300,11 +406,11 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
             string ps =
                 "$ws=New-Object -ComObject WScript.Shell;" +
                 "$targets=@('" + Esc(desktop) + "','" + Esc(start) + "');" +
-                "foreach($p in $targets){$s=$ws.CreateShortcut($p);$s.TargetPath='" + Esc(exe) + "';$s.WorkingDirectory='" + Esc(Destination) + "';$s.Description='ArrobAMO';$s.Save()}";
+                "foreach($p in $targets){$s=$ws.CreateShortcut($p);$s.TargetPath='" + Esc(exe) + "';$s.WorkingDirectory='" + Esc(Destination) + "';$s.IconLocation='" + Esc(exe) + ",0';$s.Description='ArrobAMO 0.5.3.1';$s.Save()}";
             string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(ps));
             var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " + encoded);
             psi.CreateNoWindow = true; psi.UseShellExecute = false;
-            using (var p = Process.Start(psi)) { p.WaitForExit(); }
+            using (var p = Process.Start(psi)) { p.WaitForExit(); if (p.ExitCode != 0) throw new IOException("No se pudieron crear los accesos directos."); }
         }
 
         string Esc(string s) { return s.Replace("'", "''"); }
@@ -318,19 +424,51 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
                 key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));
-                key.SetValue("UninstallString", Path.Combine(Destination, "Desinstalar.cmd"));
+                key.SetValue("UninstallString", "\""+Path.Combine(Destination, "ArrobAMOUninstaller.exe")+"\"");
                 key.SetValue("URLInfoAbout", "https://github.com/desarrollamo/ArrobAMO");
+                key.SetValue("EstimatedSize", 1600, RegistryValueKind.DWord);
                 key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
             }
         }
 
-        [STAThread]
-        static void Main()
+        static int VerifyPackage()
         {
+            string test = Path.Combine(Path.GetTempPath(), "ArrobAMO-Installer-Test-"+Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(test);
+                foreach (string name in new [] { "ArrobAMO.exe", "ArrobAMOUninstaller.exe",
+                    "Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.WinForms.dll", "WebView2Loader.dll" })
+                {
+                    using (Stream input = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
+                    {
+                        if (input == null) return 2;
+                        using (FileStream output = File.Create(Path.Combine(test,name))) input.CopyTo(output);
+                    }
+                    if(new FileInfo(Path.Combine(test,name)).Length < 1000) return 3;
+                }
+                using(Stream input=Assembly.GetExecutingAssembly().GetManifestResourceStream("LICENSE-USER.txt"))
+                    if(input == null || input.Length < 200) return 4;
+                string version = FileVersionInfo.GetVersionInfo(Path.Combine(test,"ArrobAMO.exe")).FileVersion;
+                return version=="0.5.3.1" ? 0 : 5;
+            }
+            catch { return 6; }
+            finally
+            {
+                try { if(Directory.Exists(test)) Directory.Delete(test,true); } catch {}
+            }
+        }
+
+        [STAThread]
+        static int Main(string[] args)
+        {
+            if(args != null && args.Length==1 && args[0]=="--self-test")
+                return VerifyPackage();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new SetupForm());
+            return 0;
         }
     }
 }
