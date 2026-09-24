@@ -6,6 +6,10 @@ ArrobAMO es el navegador del ecosistema DesarrollAMO.
 
 Repositorio oficial: desarrollamo/ArrobAMO.
 
+## Corrección 0.5.3.1
+
+La comprobación de GitHub compara correctamente las versiones de tres y cuatro componentes. Ver [notas](docs/RELEASE-0.5.3.1.md).
+
 ## Novedades de la versión 0.5.3
 
 [Notas de la 0.5.3](docs/RELEASE-0.5.3.md). Se corrigen cierres de menús, eventos duplicados, navegación y diseño; se añaden información del dispositivo y consulta de versión.

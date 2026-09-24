@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Diagnostics;
 using System.IO;
@@ -182,7 +182,7 @@ namespace ArrobAMO {
    <style>body{font:16px Segoe UI,sans-serif;background:#fff;color:#151515;max-width:880px;margin:32px auto;padding:20px;line-height:1.6}
    h1{font-size:32px}h2{margin-top:30px;color:#202020}section{background:#f8f8f8;border:1px solid #dedede;padding:16px 22px;border-radius:14px;margin:12px 0}
    code{color:#1e1e1e}button{background:#171717;color:white;border:1px solid #171717;border-radius:8px;padding:11px 16px;cursor:pointer;margin:6px}button:hover{border-color:#83d8f4;box-shadow:0 0 0 2px #f1b8dc}h1{border-bottom:3px solid #f0d578;padding-bottom:12px}
-   small{color:#626262}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.3</h1>
+   small{color:#626262}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.3.1</h1>
    <p>Ayuda local. Escribí <code>/ayudAMO</code>, <code>/help</code> o <code>arrobamo://ayudamo</code> en la barra de direcciones.</p>
    <section><h2>Micrófono y cámara</h2><p>Clic en MIC o CAM para permitir o bloquear NUEVAS solicitudes de sitios dentro de ArrobAMO.
    Clic derecho: permisos por sitio y ajustes de privacidad de Windows. Los controles no apagan físicamente los dispositivos.

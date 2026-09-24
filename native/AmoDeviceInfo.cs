@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Diagnostics;
 using System.Net;
@@ -52,7 +52,7 @@ namespace ArrobAMO {
       return m.Groups[1].Value;
      }
     });
-    Version current=new Version(local),remote=new Version(latest);
+    Version current=new Version(local),remote=new Version(latest.Split('.').Length==3 ? latest+".0" : latest);
     string text="Versión instalada: "+current+"\nÚltima versión publicada en GitHub: "+remote+
       "\n"+(current<remote?"Hay una actualización publicada.":current==remote?"La versión instalada coincide con la publicación.":"Versión local posterior a la última publicación.")+
       "\n\nEsta comparación requiere Internet y no modifica el navegador.";
