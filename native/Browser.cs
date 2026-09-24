@@ -46,6 +46,7 @@ namespace ArrobAMO
         readonly Color Muted = AmoTheme.TextMuted;
         readonly Color Danger = AmoTheme.Danger;
 
+        readonly string internalMessageToken = Guid.NewGuid().ToString("N");
         readonly Panel brand = new Panel();
         readonly Panel nav = new Panel();
         readonly Panel side = new Panel();
@@ -190,6 +191,7 @@ namespace ArrobAMO
 
             BuildBrand();
             SetupNetworkLabels();
+            SetupDeviceLabel();
             SeedDefaultScripts();
             BuildNav();
             BuildSidebar();
@@ -377,7 +379,7 @@ namespace ArrobAMO
                 menu.Items.Add("Activar / pausar escucha", null, async delegate { await RunAvatarVoice("document.getElementById('mic')?.click()"); });
                 menu.Items.Add("Detener voz", null, async delegate { await RunAvatarVoice("document.getElementById('stop')?.click()"); });
                 menu.Items.Add("Abrir AvatarAMO", null, delegate { Navigate("arrobamo://avataramo"); });
-                menu.Closed += delegate { menu.Dispose(); };
+
                 menu.Show(voiceMark, new Point(0, voiceMark.Height));
             }
             else if (e.Button == MouseButtons.Left)
@@ -535,13 +537,13 @@ namespace ArrobAMO
             AddSideButton("Automatizaciones", ((char)0x21BB).ToString(), 184, delegate { ShowLoopMenu(); }, loopButton);
             AddSideButton("IA", ((char)0x2726).ToString(), 228, delegate { aiMenu.Show(side, new Point(side.Width, 228)); });
             AddSideButton("AvatarAMO", "A", 580, delegate { Navigate("arrobamo://avataramo"); });
-            AddSideButton("Descargas", ((char)0x21E9).ToString(), 272, delegate { downloadManager.Show(this); }, downloadsButton);
+            AddSideButton("Descargas", ((char)0x21E9).ToString(), 272, null, downloadsButton);
             AddSideButton("Marcadores", ((char)0x2606).ToString(), 316, delegate { ShowBookmarks(); });
-            AddSideButton("Equipo", ((char)0x25C8).ToString(), 360, delegate { ShowEliteCenter(); }, teamButton);
-            AddSideButton("Seguridad", ((char)0x26E8).ToString(), 404, delegate { ShowSecurity(); }, securityButton);
-            AddSideButton("Configuraci\u00F3n", ((char)0x2699).ToString(), 448, delegate { ShowSettings(); }, settingsButton);
-            AddSideButton("UI Kit", "UI", 492, delegate { ShowUIKit(); }, uiKitButton);
-            AddSideButton("Expandir sidebar", ((char)0x226B).ToString(), 536, delegate { ToggleSidebar(); }, sideToggle);
+            AddSideButton("Equipo", ((char)0x25C8).ToString(), 360, null, teamButton);
+            AddSideButton("Seguridad", ((char)0x26E8).ToString(), 404, null, securityButton);
+            AddSideButton("Configuraci\u00F3n", ((char)0x2699).ToString(), 448, null, settingsButton);
+            AddSideButton("UI Kit", "UI", 492, null, uiKitButton);
+            AddSideButton("Expandir sidebar", ((char)0x226B).ToString(), 536, null, sideToggle);
         }
 
         void BuildWorkspace()
@@ -693,6 +695,8 @@ namespace ArrobAMO
             AddMainMenuItem("Preparar contexto para IA (copiar)", async delegate { await CopyPageContextForAI(); });
             AddMainMenuItem("AyudAMO / help", delegate { Navigate("arrobamo://ayudamo"); });
             AddMainMenuItem("Estado de conexiones", delegate { ShowConnectivity(); });
+            AddMainMenuItem("Información del dispositivo", delegate { ShowDeviceInfo(); });
+            AddMainMenuItem("Comprobar actualización en GitHub", async delegate { await CheckGitHubVersion(); });
             AddMainMenuItem("Historial", delegate { ShowHistory(); });
             AddMainMenuItem("Marcadores", delegate { ShowBookmarks(); });
             AddMainMenuItem("Descargas", delegate { downloadManager.Show(this); });
@@ -751,7 +755,7 @@ namespace ArrobAMO
             b.BackColor = Ink;
             b.ForeColor = Muted;
             b.Font = new Font("Segoe UI Symbol", 12f);
-            b.Click += action;
+            if (action != null) b.Click += action;
             tooltips.SetToolTip(b, tooltip);
             side.Controls.Add(b);
         }
@@ -824,13 +828,16 @@ namespace ArrobAMO
             card.Controls.Add(new Label { Text = Application.ProductVersion, Left = 160, Top = 54, Width = 280, Height = 20, ForeColor = AmoTheme.Text });
             card.Controls.Add(new Label { Text = "Perfil Web", Left = 18, Top = 90, Width = 120, Height = 20, ForeColor = AmoTheme.TextSoft });
             card.Controls.Add(new Label { Text = Path.Combine(DataRoot, "WebView2"), Left = 160, Top = 90, Width = 300, Height = 40, ForeColor = AmoTheme.Text });
+            card.Controls.Add(new Label { Text = "GitHub: consultar con el botón inferior", Left = 160, Top = 132, Width = 300, Height = 22, ForeColor = AmoTheme.TextSoft });
             f.Controls.Add(card);
 
             var open = new AmoButton { Text = "Abrir carpeta del perfil", Variant = AmoButtonVariant.Secondary, Left = 28, Top = 306, Width = 190 };
-            open.Click += delegate { try { Process.Start("explorer.exe", DataRoot); } catch { } };
+            open.Click += delegate { try { Process.Start(new ProcessStartInfo { FileName="explorer.exe", Arguments="/e,\"" + DataRoot + "\"", UseShellExecute=true }); } catch (Exception e) { ShowToast("No se pudo abrir Explorador: "+e.Message,AmoTheme.Warning); } };
             var close = new AmoButton { Text = "Cerrar", Variant = AmoButtonVariant.Primary, Left = 418, Top = 306, Width = 100 };
             close.Click += delegate { f.Close(); };
-            f.Controls.Add(open); f.Controls.Add(close);
+            var updates = new AmoButton { Text = "Comprobar GitHub", Variant = AmoButtonVariant.Secondary, Left = 226, Top = 306, Width = 184 };
+            updates.Click += async delegate { await CheckGitHubVersion(); };
+            f.Controls.Add(open); f.Controls.Add(updates); f.Controls.Add(close);
             f.Show(this);
         }
 
@@ -1157,15 +1164,12 @@ namespace ArrobAMO
                 }
                 if (msg.StartsWith("AMO|", StringComparison.Ordinal))
                 {
-                    // Solo nuestras páginas internas pueden ejecutar comandos del host.
-                    // Las páginas externas, incluso sus iframes about:blank, quedan excluidas.
-                    string currentPage = CanonicalInternal(Convert.ToString(page.Tag));
-                    bool trustedPage = IsInternal(currentPage, "inicio") || IsInternal(currentPage, "ayudamo");
                     string source = e.Source ?? "";
                     bool internalDocument = source.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase) ||
                                             source.StartsWith("data:text/html", StringComparison.OrdinalIgnoreCase);
-                    if (!trustedPage || !internalDocument) return;
-                    HandleInternalMessage(msg.Substring(4));
+                    string prefix = "AMO|" + internalMessageToken + "|";
+                    if (!internalDocument || !msg.StartsWith(prefix, StringComparison.Ordinal)) return;
+                    HandleInternalMessage(msg.Substring(prefix.Length));
                 }
             };
 
@@ -1237,14 +1241,14 @@ namespace ArrobAMO
             if (IsInternal(url, "ayudamo"))
             {
                 page.Tag = "arrobamo://ayudamo"; page.Text = "AyudAMO";
-                web.NavigateToString(GetHelpHtml());
+                web.NavigateToString(SecureInternalHtml(GetHelpHtml()));
             }
             else if (IsInternal(url, "inicio"))
             {
                 page.Tag = "arrobamo://inicio";
                 page.Text = "Inicio";
                 if (tabs.SelectedTab == page) address.Text = "arrobamo://inicio";
-                web.NavigateToString(GetStartPageHtml());
+                web.NavigateToString(SecureInternalHtml(GetStartPageHtml()));
             }
             else
             {
@@ -1262,6 +1266,11 @@ namespace ArrobAMO
             else if (command == "SCRIPTS") ShowScriptsMenu();
             else if (command == "UIKIT") ShowUIKit();
             else if (command == "HELP") Navigate("arrobamo://ayudamo");
+        }
+
+        string SecureInternalHtml(string html)
+        {
+            return html.Replace("AMO|", "AMO|" + internalMessageToken + "|");
         }
 
         string GetStartPageHtml()
@@ -2642,7 +2651,7 @@ document.addEventListener('change',function(ev){
                     tabs.SelectedTab.Tag = "arrobamo://inicio";
                     tabs.SelectedTab.Text = "Inicio";
                 }
-                web.NavigateToString(GetStartPageHtml());
+                web.NavigateToString(SecureInternalHtml(GetStartPageHtml()));
                 address.Text = "arrobamo://inicio";
                 securityLabel.Text = "LOCAL";
                 securityLabel.ForeColor = AmoTheme.Info;

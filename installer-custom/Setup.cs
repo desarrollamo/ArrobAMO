@@ -88,7 +88,7 @@ namespace ArrobAMOSetup
             header.Controls.Add(title);
 
             var subtitle = new Label {
-                Text = "Navegador · v0.5.2 · Tecnología con alma.",
+                Text = "Navegador · v0.5.3 · Tecnología con alma.",
                 ForeColor = Muted,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true, Left = 119, Top = 58
@@ -314,7 +314,7 @@ rmdir /s /q ""%LOCALAPPDATA%\Programs\ArrobAMO""
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArrobAMO"))
             {
                 key.SetValue("DisplayName", "ArrobAMO");
-                key.SetValue("DisplayVersion", "0.5.2");
+                key.SetValue("DisplayVersion", "0.5.3");
                 key.SetValue("Publisher", "DesarrollAMO");
                 key.SetValue("InstallLocation", Destination);
                 key.SetValue("DisplayIcon", Path.Combine(Destination, "ArrobAMO.exe"));

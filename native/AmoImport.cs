@@ -129,14 +129,14 @@ namespace ArrobAMO
             var dataCard = new AmoCard { Left=24,Top=330,Width=650,Height=150 };
             dataCard.Controls.Add(new Label { Text="Datos",Left=16,Top=14,Width=160,Height=24,Font=AmoTheme.UI(10f,FontStyle.Bold),ForeColor=AmoTheme.Text });
             dataCard.Controls.Add(new CheckBox { Text="Favoritos / marcadores",Left=16,Top=48,Width=200,Checked=true,Enabled=true,BackColor=AmoTheme.Surface,ForeColor=AmoTheme.Text });
-            dataCard.Controls.Add(new CheckBox { Text="Historial · próximamente",Left=230,Top=48,Width=200,Checked=false,Enabled=false,BackColor=AmoTheme.Surface,ForeColor=AmoTheme.TextMuted });
-            dataCard.Controls.Add(new CheckBox { Text="Contraseñas · próximamente",Left=430,Top=48,Width=190,Checked=false,Enabled=false,BackColor=AmoTheme.Surface,ForeColor=AmoTheme.TextMuted });
-            dataCard.Controls.Add(new CheckBox { Text="Autocompletado · próximamente",Left=16,Top=84,Width=220,Checked=false,Enabled=false,BackColor=AmoTheme.Surface,ForeColor=AmoTheme.TextMuted });
-            dataCard.Controls.Add(new CheckBox { Text="Pestañas recientes · próximamente",Left=230,Top=84,Width=230,Checked=false,Enabled=false,BackColor=AmoTheme.Surface,ForeColor=AmoTheme.TextMuted });
+            dataCard.Controls.Add(new Label {
+                Text="Solo se importan favoritos desde los perfiles seleccionados. No se accede a contraseñas ni se modifica el navegador de origen.",
+                Left=16,Top=83,Width=595,Height=49,ForeColor=AmoTheme.TextSoft
+            });
             Controls.Add(dataCard);
 
             var cancel = new AmoButton { Text="Cancelar",Variant=AmoButtonVariant.Secondary,Left=468,Top=504,Width=96,DialogResult=DialogResult.Cancel };
-            import.Text="Importar favoritos"; import.Variant=AmoButtonVariant.Primary; import.Left=574; import.Top=504; import.Width=100; import.Enabled=sources.Count>0;
+            import.Text="Importar favoritos"; import.Variant=AmoButtonVariant.Primary; import.Left=552; import.Top=504; import.Width=122; import.Enabled=sources.Count>0;
             Controls.Add(cancel); Controls.Add(import); CancelButton=cancel;
 
             import.Click += delegate

@@ -37,6 +37,7 @@ namespace ArrobAMO {
    bool full=ClientSize.Width>=1280;
    internetLabel.Visible=ClientSize.Width>=1100;
    wifiLabel.Visible=full;ethernetLabel.Visible=full;bluetoothLabel.Visible=full;
+   deviceLabel.Visible=ClientSize.Width>=1350;
   }
   sealed class NetworkSnapshot {
    public bool Wifi,Eth,Bt,Any,Internet;
@@ -88,7 +89,7 @@ namespace ArrobAMO {
    } catch(Exception e) {networkDetails="No se pudo consultar la red: "+e.Message;internetLabel.Text="NET: ?";}
    finally {networkRefreshing=false;}
   }
-  void ShowConnectivity(){MessageBox.Show(this,networkDetails,"Conexiones · ArrobAMO",MessageBoxButtons.OK,MessageBoxIcon.Information);}
+  void ShowConnectivity(){MessageBox.Show(this,networkDetails+"\n\n"+ReadHardwareInformation(),"Conexiones · ArrobAMO",MessageBoxButtons.OK,MessageBoxIcon.Information);}
   void ConnectionMouseUp(object sender,MouseEventArgs e){
    if(e.Button==MouseButtons.Left){ShowConnectivity();return;}
    if(e.Button!=MouseButtons.Right)return;
@@ -98,7 +99,7 @@ namespace ArrobAMO {
    menu.Items.Add("Configuración Ethernet",null,delegate {OpenWindowsSettings("ms-settings:network-ethernet");});
    menu.Items.Add("Configuración Bluetooth",null,delegate {OpenWindowsSettings("ms-settings:bluetooth");});
    menu.Items.Add("Actualizar ahora",null,async delegate {await RefreshNetwork();});
-   menu.Closed+=delegate {menu.Dispose();};menu.Show((Control)sender,new Point(0,20));
+   menu.Show((Control)sender,new Point(0,20));
   }
   void OpenWindowsSettings(string uri){
    try {Process.Start(new ProcessStartInfo(uri){UseShellExecute=true});}
@@ -113,7 +114,7 @@ namespace ArrobAMO {
     menu.Items.Add("Permisos por sitio",null,delegate {ShowSecurity();});
     menu.Items.Add(mic?"Ajustes de micrófono de Windows":"Ajustes de cámara de Windows",null,
       delegate {OpenWindowsSettings(mic?"ms-settings:privacy-microphone":"ms-settings:privacy-webcam");});
-    menu.Closed+=delegate {menu.Dispose();};menu.Show((Control)sender,new Point(0,20));
+    menu.Show((Control)sender,new Point(0,20));
    }else if(e.Button==MouseButtons.Left){ToggleDevice(mic);}
    await Task.CompletedTask;
   }
@@ -178,10 +179,10 @@ namespace ArrobAMO {
   }
   string GetHelpHtml(){
    return @"<!doctype html><html lang='es'><head><meta charset='utf-8'><title>AyudAMO · ArrobAMO</title>
-   <style>body{font:16px Segoe UI,sans-serif;background:#111827;color:#f8fafc;max-width:880px;margin:32px auto;padding:20px;line-height:1.6}
-   h1{font-size:32px}h2{margin-top:30px;color:#8bd9f4}section{background:#1f2937;padding:16px 22px;border-radius:14px;margin:12px 0}
-   code{color:#a7f3d0}button{background:#2563eb;color:white;border:0;border-radius:8px;padding:11px;cursor:pointer;margin:6px}
-   small{color:#cbd5e1}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.2</h1>
+   <style>body{font:16px Segoe UI,sans-serif;background:#fff;color:#151515;max-width:880px;margin:32px auto;padding:20px;line-height:1.6}
+   h1{font-size:32px}h2{margin-top:30px;color:#202020}section{background:#f8f8f8;border:1px solid #dedede;padding:16px 22px;border-radius:14px;margin:12px 0}
+   code{color:#1e1e1e}button{background:#171717;color:white;border:1px solid #171717;border-radius:8px;padding:11px 16px;cursor:pointer;margin:6px}button:hover{border-color:#83d8f4;box-shadow:0 0 0 2px #f1b8dc}h1{border-bottom:3px solid #f0d578;padding-bottom:12px}
+   small{color:#626262}</style></head><body><h1>AyudAMO · ArrobAMO 0.5.3</h1>
    <p>Ayuda local. Escribí <code>/ayudAMO</code>, <code>/help</code> o <code>arrobamo://ayudamo</code> en la barra de direcciones.</p>
    <section><h2>Micrófono y cámara</h2><p>Clic en MIC o CAM para permitir o bloquear NUEVAS solicitudes de sitios dentro de ArrobAMO.
    Clic derecho: permisos por sitio y ajustes de privacidad de Windows. Los controles no apagan físicamente los dispositivos.

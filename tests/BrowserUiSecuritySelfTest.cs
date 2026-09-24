@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
@@ -64,7 +64,8 @@ class BrowserUiSecuritySelfTest {
   Check(address.Text.Contains("inicio"),"Inicio vuelve desde ayuda");
   var web=tabs.SelectedTab.Controls.OfType<WebView2>().First();
   Check(web.CoreWebView2!=null,"Motor WebView2 creado");
-  await web.ExecuteScriptAsync("chrome.webview.postMessage('AMO|HELP')");await Task.Delay(700);
+  string token=Get<string>(app,"internalMessageToken");
+  await web.ExecuteScriptAsync("chrome.webview.postMessage('AMO|"+token+"|HELP')");await Task.Delay(700);
   Check(address.Text.Contains("ayudamo"),"AyudAMO: mensaje interno autorizado");
   Call(app,"Navigate","arrobamo://inicio");await Task.Delay(800);
 
@@ -73,6 +74,31 @@ class BrowserUiSecuritySelfTest {
   Check(web.Source!=null&&web.Source.Host=="example.com","Contexto de sitio público separado del inicio interno");
   await web.ExecuteScriptAsync("chrome.webview.postMessage('AMO|HELP')");await Task.Delay(900);
   Check(!address.Text.Contains("ayudamo"),"Seguridad: mensajes AMO de página sin confianza ignorados");
+  Check(web.CanGoBack,"Volver habilitado luego de abrir una URL externa");
+  web.GoBack();await Task.Delay(1100);
+  string visible=(await web.ExecuteScriptAsync("document.getElementById('q') !== null")).Trim();
+  Check(visible=="true","Volver recupera la búsqueda de Inicio");
+  if(visible=="true"){
+    await web.ExecuteScriptAsync("document.getElementById('q').value='https://example.org/';document.querySelector('form.search').requestSubmit()");
+    await Task.Delay(1400);
+    Check(web.Source!=null&&web.Source.Host=="example.org","Botón Ir funciona otra vez luego de Volver");
+  }
+  var device=Get<Label>(app,"deviceLabel");
+  Check(device.Text.Contains(Environment.MachineName),"El estado muestra nombre del equipo real");
+  var sidebar=Get<Panel>(app,"side");
+  var kit=Get<Button>(app,"uiKitButton");
+  int before=Application.OpenForms.Cast<Form>().Count(f=>f.Text.Contains("UI Kit"));
+  kit.PerformClick();await Task.Delay(250);
+  var kitForms=Application.OpenForms.Cast<Form>().Where(f=>f.Text.Contains("UI Kit")).ToArray();
+  Check(kitForms.Length-before==1,"UI Kit de barra lateral abre exactamente una ventana");
+  foreach(var f in kitForms)f.Close();
+  Check(sidebar.Controls.OfType<Button>().Count(b=>b==kit)==1,"UI Kit no se duplica en la barra lateral");
+  var internet=Get<Label>(app,"internetLabel");
+  var invoke=typeof(BrowserForm).GetMethod("ConnectionMouseUp",BindingFlags.NonPublic|BindingFlags.Instance);
+  invoke.Invoke(app,new object[]{internet,new MouseEventArgs(MouseButtons.Right,1,4,4,0)});
+  await Task.Delay(180);
+  SendKeys.SendWait("{ESC}");await Task.Delay(200);
+  Check(!app.IsDisposed,"Menú de conexiones abre y se cierra sin cerrar el navegador");
   Console.WriteLine("FINAL_ADDRESS="+address.Text);
  }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -113,8 +113,9 @@ namespace ArrobAMO
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : AmoTheme.Bg);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            var rect = new Rectangle(2, 2, Math.Max(1, Width - 5), Math.Max(1, Height - 5));
 
             Color bg = Color.Transparent;
             Color fg = AmoTheme.Text;
@@ -163,7 +164,7 @@ namespace ArrobAMO
             }
 
             TextRenderer.DrawText(e.Graphics, Text, Font, rect, fg,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
 
             if (Focused && Enabled)
             {
